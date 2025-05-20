@@ -1,0 +1,28 @@
+# Entorno virtual
+venv/
+
+# Archivos bytecode de Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Archivos temporales de editores/IDEs
+*.swp
+*.swo
+*.bak
+*.tmp
+
+# Archivos de configuración del entorno
+.env
+*.env
+
+# Configuración de VSCode u otros IDEs (si deseas excluirla)
+.vscode/
+
+# Salidas de pruebas o ejecución
+*.log
+*.out
+
+# Archivos de sistema
+.DS_Store
+Thumbs.db
