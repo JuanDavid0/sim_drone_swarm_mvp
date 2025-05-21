@@ -75,8 +75,13 @@ class Drone:
             vec_hacia_frontera = punto_frontera - self.posicion
             dist_frontera = np.linalg.norm(vec_hacia_frontera)
             if dist_frontera > 0:
-                magnitud_atraccion = config.K_FRONTIER_ATTRACTION * min(dist_frontera, self.max_velocidad)
-                fuerza_frontera = (vec_hacia_frontera / dist_frontera) * magnitud_atraccion
+                #  Opción A (magnitud variable):
+                #   magnitud_atraccion = config.K_FRONTIER_ATTRACTION * min(dist_frontera, self.max_velocidad)
+                # fuerza_frontera = (vec_hacia_frontera / dist_frontera) * magnitud_atraccion
+                # Opción B (magnitud más constante, solo dirección):
+                fuerza_frontera = (vec_hacia_frontera / dist_frontera) * config.K_FRONTIER_ATTRACTION * 50 # El '50' es un factor de magnitud, ajústalo
+                # O incluso más simple para probar:
+                # fuerza_frontera = (vec_hacia_frontera / dist_frontera) * config.K_FRONTIER_ATTRACTION_CONSTANT_MAGNITUDE (nueva constante en config.py)
                 fuerza_total += fuerza_frontera
         
         # --- Interacciones con otros Drones (Cohesión, Alineación, Separación) ---
