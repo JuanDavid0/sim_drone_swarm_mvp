@@ -6,9 +6,12 @@ from .drone import Drone
 from .obstaculo import Obstaculo
 from . import cbf as cbf_module
 from .rng import LCG, MiddleSquareRNG # <--- IMPORTAR NUESTROS RNGs
+from .rng_validator import perform_rng_quality_tests_from_scratch # <--- NUEVA IMPORTACIÓN
+
 
 class Simulation:
     def __init__(self):
+        self.config = config
         pygame.init()
         pygame.font.init()
         self.pantalla = pygame.display.set_mode((config.ANCHO_PANTALLA, config.ALTO_PANTALLA))
@@ -238,43 +241,52 @@ class Simulation:
                 if evento.key == config.TECLA_QUITAR_DRON:
                     self._quitar_dron()
                 if evento.key == config.TECLA_EJECUTAR_RNG_TESTS: # Nueva tecla
-                    self.ejecutar_y_mostrar_pruebas_rng()
+                    self.ejecutar_y_mostrar_pruebas_rng_consola()
 
-
-    def ejecutar_y_mostrar_pruebas_rng(self):
-        """Ejecuta pruebas en los RNGs y muestra resultados en consola."""
-        print("\n--- Ejecutando Pruebas de Calidad RNG ---")
-        from .rng_validator import perform_rng_quality_tests # Importar aquí para evitar import circular si estuviera en otro sitio
-
-        # Probar el GCL del Entorno
-        print("\n--- Pruebas para GCL_ENTORNO ---")
-        # Crear una instancia nueva para la prueba para no alterar el estado del de la simulación
-        gcl_test_entorno = LCG(seed=self.rng_entorno.initial_seed, # Usa la misma semilla inicial
-                               multiplier=config.GCL_MULTIPLIER_A,
-                               increment=config.GCL_INCREMENT_C,
-                               modulus=config.GCL_MODULUS_M)
-        resultados_gcl_e = perform_rng_quality_tests(gcl_test_entorno, config.RNG_TEST_NUM_SAMPLES)
-        for test_name, result in resultados_gcl_e.items():
-            print(f"  {test_name}: {result}")
-
-        # Probar el MiddleSquareRNG de los Drones
-        print("\n--- Pruebas para MIDDLE_SQUARE_DRONES ---")
-        ms_test_drones = MiddleSquareRNG(seed=self.rng_drones_decisiones.initial_seed,
-                                         num_digits=config.N_DIGITS_MIDDLE_SQUARE)
-        resultados_ms_d = perform_rng_quality_tests(ms_test_drones, config.RNG_TEST_NUM_SAMPLES)
-        for test_name, result in resultados_ms_d.items():
-            print(f"  {test_name}: {result}")
-        
-        # Probar el GCL de Obstáculos Dinámicos
-        print("\n--- Pruebas para GCL_OBSTACULOS_DINAMICOS ---")
-        gcl_test_obs = LCG(seed=self.rng_obstaculos_dinamicos.initial_seed,
-                           multiplier=config.GCL_MULTIPLIER_A_OBS,
-                           increment=config.GCL_INCREMENT_C_OBS,
-                           modulus=config.GCL_MODULUS_M_OBS)
-        resultados_gcl_o = perform_rng_quality_tests(gcl_test_obs, config.RNG_TEST_NUM_SAMPLES)
-        for test_name, result in resultados_gcl_o.items():
-            print(f"  {test_name}: {result}")
-        print("---------------------------------------\n")
+    def ejecutar_y_mostrar_pruebas_rng_consola(self): # Renombrado para claridad
+        print("\n--- Ejecutando Pruebas de Calidad RNG (Desde Cero - Consola) ---")
+        rngs_para_probar = [
+            ("GCL_ENTORNO", self.rng_entorno, 
+             {'a': self.config.GCL_MULTIPLIER_A, 'c': self.config.GCL_INCREMENT_C, 'm': self.config.GCL_MODULUS_M}),
+            ("MIDDLE_SQUARE_DRONES", self.rng_drones_decisiones, {'digits': self.config.N_DIGITS_MIDDLE_SQUARE}),
+            ("GCL_OBSTACULOS_DINAMICOS", self.rng_obstaculos_dinamicos,
+             {'a': self.config.GCL_MULTIPLIER_A_OBS, 'c': self.config.GCL_INCREMENT_C_OBS, 'm': self.config.GCL_MODULUS_M_OBS})
+        ]
+        for nombre, instancia_sim, params_rng in rngs_para_probar: # Renombrado 'params' a 'params_rng'
+            print(f"\n--- Pruebas para {nombre} (Semilla Inicial de Sim: {instancia_sim.initial_seed}) ---")
+            
+            instancia_test = None # Inicializar
+            if isinstance(instancia_sim, LCG):
+                instancia_test = LCG(seed=instancia_sim.initial_seed, 
+                                     multiplier=params_rng['a'], 
+                                     increment=params_rng['c'], 
+                                     modulus=params_rng['m'])
+            elif isinstance(instancia_sim, MiddleSquareRNG):
+                instancia_test = MiddleSquareRNG(seed=instancia_sim.initial_seed, 
+                                                 num_digits=params_rng['digits'])
+            else: 
+                print(f"  Tipo de RNG desconocido '{type(instancia_sim).__name__}' para prueba. Omitiendo.")
+                continue
+            
+            # Llamar a la nueva función de prueba
+            resultados = perform_rng_quality_tests_from_scratch(instancia_test, self.config.RNG_TEST_NUM_SAMPLES)
+            
+            for test_name_key, result_data in resultados.items():
+                if test_name_key in ['rng_type', 'initial_seed_for_test_sequence', 'num_samples_tested']:
+                    print(f"  {test_name_key.replace('_', ' ').title()}: {result_data}")
+                    continue
+                
+                print(f"  Test: {result_data.get('test_name', test_name_key)}")
+                if isinstance(result_data, dict):
+                    if 'error' in result_data:
+                        print(f"    Error: {result_data['error']}")
+                    else:
+                        for k, v in result_data.items():
+                            if k == 'test_name': continue # Ya se imprimió
+                            print(f"    {k.replace('_', ' ').title()}: {v:.4f}" if isinstance(v, float) else f"    {k.replace('_', ' ').title()}: {v}")
+                else: # Por si algo no es un dict
+                    print(f"    {result_data}")
+        print("-----------------------------------------------------\n")
 
 
     def paso_simulacion(self):

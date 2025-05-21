@@ -1,108 +1,183 @@
 # drone_simulation/rng_validator.py
 import numpy as np
-from scipy import stats # Usamos scipy.stats para las pruebas, no para generar
-# No necesitamos importar LCG o MiddleSquareRNG aquí, ya que las funciones
-# recibirán una instancia del generador a probar.
-from . import config # Para parámetros de prueba
+# NO importaremos scipy.stats aquí para las funciones de prueba principales
+from . import config # Para parámetros de prueba como RNG_TEST_NUM_BINS_CHI2
 
+# --- Funciones auxiliares para matemáticas (si son necesarias) ---
+def gamma_incomplete_upper(s, x):
+    """
+    Implementación (muy simplificada o placeholder) de la función Gamma incompleta superior Q(s,x).
+    Calcular esto con precisión desde cero es muy complejo y está fuera del alcance de un MVP simple.
+    Para una prueba Chi2 real, necesitaríamos esto o una tabla de Chi2.
+    ESTO ES UN PLACEHOLDER - NO USAR PARA RESULTADOS ESTADÍSTICOS REALES SIN UNA LIBRERÍA.
+    """
+    if s <= 0 or x < 0: return np.nan
+    # Una aproximación muy, muy burda o enlace a tabla.
+    # Por ahora, solo retornaremos NaN para indicar que no está implementado.
+    print("Advertencia: gamma_incomplete_upper no está completamente implementada para p-value de Chi2.")
+    return np.nan
+
+def chi2_cdf(chi2_stat, df):
+    """
+    Placeholder para la CDF de Chi-cuadrado.
+    P(X <= chi2_stat) donde X sigue una distribución Chi2 con df grados de libertad.
+    p_value = 1 - CDF(chi2_stat, df)
+    ESTO ES UN PLACEHOLDER.
+    """
+    print(f"Advertencia: chi2_cdf no implementada. Estadístico Chi2: {chi2_stat}, df: {df}. Consulte una tabla.")
+    if df <= 0: return np.nan
+    # Podríamos hardcodear algunos valores críticos aquí para df comunes y alpha=0.05
+    # Ejemplo para df=9 (10 bins - 1), alpha=0.05, valor crítico es aprox 16.919
+    if df == 9 and chi2_stat > 16.919: return 0.04 # Simula p < 0.05
+    if df == 9 and chi2_stat <= 16.919: return 0.10 # Simula p >= 0.05
+    return np.nan # No podemos calcular el p-value exacto
+
+
+# --- Funciones de Prueba (Implementación desde Cero) ---
+
+def run_chi_squared_test_uniform_floats_from_scratch(float_samples: list, num_bins: int) -> dict:
+    """
+    Prueba de Chi-cuadrado para uniformidad de flotantes en [0,1), implementada desde cero.
+    Retorna el estadístico Chi2 y grados de libertad. El p-value es un placeholder.
+    """
+    results = {'test_name': 'Chi-Cuadrado para Uniformidad (desde cero)'}
+    n_samples = len(float_samples)
+
+    if not float_samples or n_samples < num_bins * 5:
+        results['error'] = 'No suficientes muestras o bins para Chi-cuadrado confiable.'
+        return results
+    
+    observed_counts = [0] * num_bins
+    bin_width = 1.0 / num_bins
+    for sample in float_samples:
+        if 0.0 <= sample < 1.0:
+            bin_index = int(sample / bin_width)
+            observed_counts[bin_index] += 1
+        elif sample == 1.0: # El límite superior [0,1)
+            observed_counts[num_bins - 1] +=1
+
+
+    expected_count_per_bin = n_samples / num_bins
+    
+    if expected_count_per_bin < 1:
+        results['warning'] = f"Frecuencia esperada por bin ({expected_count_per_bin:.2f}) es < 1. Resultados pueden no ser precisos."
+    elif expected_count_per_bin < 5:
+        results['warning'] = f"Frecuencia esperada por bin ({expected_count_per_bin:.2f}) es < 5. Resultados pueden ser menos precisos."
+
+    chi2_statistic = 0.0
+    for obs_count in observed_counts:
+        chi2_statistic += ((obs_count - expected_count_per_bin)**2) / expected_count_per_bin
+    
+    degrees_freedom = num_bins - 1
+    
+    results['statistic'] = chi2_statistic
+    results['degrees_freedom'] = degrees_freedom
+    results['p_value_placeholder'] = chi2_cdf(chi2_statistic, degrees_freedom) # Usará el placeholder
+    results['bins'] = num_bins
+    results['observed_counts'] = observed_counts
+    results['expected_per_bin'] = expected_count_per_bin
+    return results
+
+
+def run_kolmogorov_smirnov_test_uniform_floats_from_scratch(float_samples: list) -> dict:
+    """
+    Prueba K-S para uniformidad de flotantes en [0,1), implementada desde cero.
+    Retorna el estadístico D. El p-value es un placeholder.
+    """
+    results = {'test_name': 'Kolmogorov-Smirnov para Uniformidad (desde cero)'}
+    n = len(float_samples)
+    if not float_samples or n == 0:
+        results['error'] = 'No hay muestras para la prueba K-S.'
+        return results
+        
+    sorted_samples = sorted(float_samples)
+    
+    d_plus_max = 0.0
+    d_minus_max = 0.0
+    
+    for i in range(n):
+        # F(x_i) para uniforme [0,1) es x_i
+        # ECDF F_n(x_i) es (i+1)/n (o i/n si se indexa desde 0 para el primer valor)
+        # Usamos la definición D_n = max |F_n(x) - F(x)|
+        # F_n(x_i) = (i+1)/n
+        # F(x_i) = sorted_samples[i] (ya que es la CDF uniforme)
+        
+        f_n_xi = (i + 1) / n
+        f_xi = sorted_samples[i]
+        
+        d_plus_current = f_n_xi - f_xi
+        if d_plus_current > d_plus_max:
+            d_plus_max = d_plus_current
+            
+        # D_n^- = max_i ( F(x_i) - (i-1)/n )
+        f_n_xi_minus_1 = i / n # (i-1)+1 / n
+        d_minus_current = f_xi - f_n_xi_minus_1
+        if d_minus_current > d_minus_max:
+            d_minus_max = d_minus_current
+            
+    ks_statistic = max(d_plus_max, d_minus_max)
+    results['statistic_D'] = ks_statistic
+    
+    # Calcular el p-value para K-S desde cero es muy complejo.
+    # Para N > ~35, se pueden usar aproximaciones basadas en la Serie de Kolmogorov
+    # o comparar D_n * sqrt(n) con valores críticos (e.g., 1.36 para alpha=0.05)
+    critical_value_approx = 0.0
+    significance_level_alpha = 0.05 # Ejemplo
+    if n > 35: # Aproximación para N grande
+        # Valor crítico para D_alpha es K_alpha / sqrt(n)
+        # K_alpha para 0.05 es aprox 1.358
+        critical_value_approx = 1.358 / np.sqrt(n)
+        results['critical_value_D_at_alpha_0.05 (approx)'] = critical_value_approx
+        if ks_statistic > critical_value_approx:
+            results['hypothesis_H0_rejected_at_alpha_0.05 (approx)'] = True
+        else:
+            results['hypothesis_H0_rejected_at_alpha_0.05 (approx)'] = False
+    else:
+        results['p_value_info'] = "P-value exacto requiere tabla o librería para N <= 35."
+
+    return results
+
+
+def perform_rng_quality_tests_from_scratch(rng_instance_to_test, num_samples: int) -> dict:
+    """
+    Ejecuta pruebas de calidad implementadas desde cero.
+    """
+    test_suite_results = {}
+    
+    # Asegurarnos de que generate_samples_from_rng_instance está definido o lo copiamos aquí
+    # Asumiendo que lo definimos en este mismo archivo:
+    float_samples = generate_samples_from_rng_instance(rng_instance_to_test, num_samples, 'float')
+    
+    test_suite_results['rng_type'] = type(rng_instance_to_test).__name__
+    if hasattr(rng_instance_to_test, 'initial_seed'): # Para que funcione con LCG y MiddleSquare
+        test_suite_results['initial_seed_for_test_sequence'] = rng_instance_to_test.initial_seed
+    test_suite_results['num_samples_tested'] = len(float_samples)
+
+    test_suite_results['chi_squared_uniformity'] = run_chi_squared_test_uniform_floats_from_scratch(
+        float_samples, 
+        config.RNG_TEST_NUM_BINS_CHI2
+    )
+    test_suite_results['kolmogorov_smirnov_uniformity'] = run_kolmogorov_smirnov_test_uniform_floats_from_scratch(
+        float_samples
+    )
+    
+    # Autocorrelación (usa NumPy, lo cual está permitido para el análisis, no para generación)
+    if len(float_samples) > 1:
+        try:
+            samples_np = np.array(float_samples)
+            autocorr_lag1 = np.corrcoef(samples_np[:-1], samples_np[1:])[0, 1]
+            test_suite_results['autocorrelation_lag1_numpy'] = {'value': autocorr_lag1}
+        except Exception as e:
+            test_suite_results['autocorrelation_lag1_numpy'] = {'error': f'Error en Autocorrelación: {str(e)}'}
+    else:
+        test_suite_results['autocorrelation_lag1_numpy'] = {'error': 'No suficientes muestras'}
+
+    return test_suite_results
+
+# Función auxiliar que estaba en rng_validator.py antes, necesaria para perform_rng_quality_tests_from_scratch
 def generate_samples_from_rng_instance(rng_instance, num_samples: int, sample_type: str = 'float') -> list:
-    """Genera una lista de muestras desde una instancia de RNG dada."""
     samples = []
     if sample_type == 'float':
         for _ in range(num_samples):
             samples.append(rng_instance.next_float())
-    elif sample_type == 'int_0_99': # Ejemplo para Chi-cuadrado con enteros
-        for _ in range(num_samples):
-            # Asumimos que next_int(0,99) existe y funciona para el RNG dado
-            samples.append(rng_instance.next_int(0, 99)) 
     return samples
-
-def run_chi_squared_test_uniform_floats(float_samples: list, num_bins: int) -> dict:
-    """
-    Prueba de Chi-cuadrado para uniformidad de flotantes en [0,1).
-    """
-    if not float_samples or len(float_samples) < num_bins * 5 : # Condición para validez de Chi2
-        return {'error': 'No suficientes muestras o bins para Chi-cuadrado confiable.'}
-    
-    observed_counts, _ = np.histogram(float_samples, bins=num_bins, range=(0,1))
-    expected_counts = [len(float_samples) / num_bins] * num_bins
-    
-    # Eliminar bins con expected_counts == 0 para evitar error en chisquare
-    valid_indices = [i for i, e in enumerate(expected_counts) if e > 0]
-    observed_counts_valid = observed_counts[valid_indices]
-    expected_counts_valid = [expected_counts[i] for i in valid_indices]
-
-    if not expected_counts_valid or len(observed_counts_valid) < 2: # Necesita al menos 2 categorías
-         return {'error': 'No suficientes categorías válidas para Chi-cuadrado.'}
-    
-    if np.min(expected_counts_valid) < 1 : # Scipy advierte si E < 5, pero puede fallar con E < 1
-        print(f"Advertencia Chi2: Frecuencias esperadas bajas ({np.min(expected_counts_valid)}), resultados pueden no ser precisos.")
-
-
-    try:
-        chi2_stat, p_val = stats.chisquare(f_obs=observed_counts_valid, f_exp=expected_counts_valid)
-        return {'statistic': chi2_stat, 'p_value': p_val, 'bins': num_bins, 'degrees_freedom': num_bins - 1}
-    except Exception as e:
-        return {'error': f'Error en Chi-cuadrado: {str(e)}'}
-
-
-def run_kolmogorov_smirnov_test_uniform_floats(float_samples: list) -> dict:
-    """
-    Prueba de Kolmogorov-Smirnov para uniformidad de flotantes en [0,1).
-    """
-    if not float_samples:
-        return {'error': 'No hay muestras para la prueba K-S.'}
-        
-    sample_data_np = np.array(float_samples)
-    try:
-        # Compara contra una distribución uniforme continua entre 0 y 1
-        ks_stat, p_val = stats.kstest(sample_data_np, 'uniform', args=(0,1)) 
-        return {'statistic': ks_stat, 'p_value': p_val}
-    except Exception as e:
-        return {'error': f'Error en K-S: {str(e)}'}
-
-
-def perform_rng_quality_tests(rng_instance_to_test, num_samples: int) -> dict:
-    """
-    Ejecuta un conjunto de pruebas de calidad en la instancia de RNG dada.
-    """
-    test_suite_results = {}
-    
-    # Generar una única muestra de flotantes para todas las pruebas que los usan
-    float_samples = generate_samples_from_rng_instance(rng_instance_to_test, num_samples, 'float')
-    
-    # Guardar una copia de la semilla inicial antes de generar muestras para las pruebas
-    # para que podamos reportar la semilla con la que se inició la generación de la muestra de prueba.
-    # Sin embargo, rng_instance_to_test ya habrá avanzado si se usó para generar float_samples.
-    # Sería mejor pasar una *nueva* instancia con la misma semilla inicial para cada prueba,
-    # o una función que genere la instancia. Por ahora, usaremos la misma secuencia.
-    
-    test_suite_results['rng_type'] = type(rng_instance_to_test).__name__
-    if hasattr(rng_instance_to_test, 'initial_seed'):
-        test_suite_results['initial_seed_for_test_sequence'] = rng_instance_to_test.initial_seed
-    test_suite_results['num_samples_tested'] = len(float_samples)
-
-    # --- Prueba 1: Chi-cuadrado para uniformidad de flotantes ---
-    test_suite_results['chi_squared_uniformity'] = run_chi_squared_test_uniform_floats(
-        float_samples, 
-        config.RNG_TEST_NUM_BINS_CHI2
-    )
-
-    # --- Prueba 2: Kolmogorov-Smirnov para uniformidad de flotantes ---
-    test_suite_results['kolmogorov_smirnov_uniformity'] = run_kolmogorov_smirnov_test_uniform_floats(
-        float_samples
-    )
-    
-    # --- (Opcional) Prueba 3: Autocorrelación simple (lag-1) ---
-    if len(float_samples) > 1:
-        try:
-            # Convertir a NumPy array para np.corrcoef si no lo es ya
-            samples_np = np.array(float_samples)
-            autocorr_lag1 = np.corrcoef(samples_np[:-1], samples_np[1:])[0, 1]
-            test_suite_results['autocorrelation_lag1'] = {'value': autocorr_lag1}
-        except Exception as e:
-            test_suite_results['autocorrelation_lag1'] = {'error': f'Error en Autocorrelación: {str(e)}'}
-    else:
-        test_suite_results['autocorrelation_lag1'] = {'error': 'No suficientes muestras'}
-
-    return test_suite_results
