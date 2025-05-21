@@ -84,3 +84,30 @@ TECLA_PAUSA_REANUDAR = pygame.K_SPACE # Tecla Espacio
 TECLA_RESETEAR = pygame.K_r
 TECLA_ANADIR_DRON = pygame.K_a
 TECLA_QUITAR_DRON = pygame.K_q
+
+# --- Parámetros para Generadores Pseudoaleatorios (Etapa 7) ---
+
+# GCL Principal (para el entorno, obstáculos generales)
+GCL_SEED_ENTORNO = None # None para semilla basada en tiempo, o un entero
+GCL_MULTIPLIER_A = 1664525
+GCL_INCREMENT_C = 1013904223
+GCL_MODULUS_M = 2**32
+
+# Generador de Cuadrados Medios (para decisiones de drones, fallos)
+MIDDLE_SQUARE_SEED_DRONES = None # Entero de N_DIGITS_MIDDLE_SQUARE dígitos. Si es None, generar uno.
+N_DIGITS_MIDDLE_SQUARE = 4 # Número de dígitos para los números y la semilla (ej. 4 para números de 0000-9999)
+                           # Semillas deben tener N_DIGITS_MIDDLE_SQUARE.
+                           # Resultados tendrán 2*N_DIGITS_MIDDLE_SQUARE, se extraen los N del medio.
+
+# (Opcional) GCL Secundario (para parámetros específicos de obstáculos dinámicos)
+GCL_SEED_OBSTACULOS_DYN = None
+GCL_MULTIPLIER_A_OBS = 1103515245 # Diferentes parámetros
+GCL_INCREMENT_C_OBS = 12345
+GCL_MODULUS_M_OBS = 2**31 # Puede ser diferente
+
+# --- Parámetros para Pruebas RNG ---
+RNG_TEST_NUM_SAMPLES = 10000
+RNG_TEST_NUM_BINS_CHI2 = 10
+
+# Teclas de Control (Adicional para Etapa 7)
+TECLA_EJECUTAR_RNG_TESTS = pygame.K_t
