@@ -1,5 +1,5 @@
 # drone_simulation/config.py (Propuesta Perfil 4 - Más Estable)
-
+import pygame
 # Dimensiones de la pantalla de Pygame
 ANCHO_PANTALLA = 800
 ALTO_PANTALLA = 600
@@ -70,3 +70,17 @@ DISTANCIA_COLISION_DRON_OBSTACULO = RADIO_DRONE + RADIO_OBSTACULO * 0.7 # Menos 
 # --- Parámetros para Repulsión de Bordes ---
 K_BORDE_REPULSION = 800.0  # Reducido para que no sea tan violenta
 DISTANCIA_REACCION_BORDE = RADIO_DRONE * 6 # Que se active desde un poco más lejos
+
+# --- Parámetros de Control Barrier Functions (CBF - Etapa 6) ---
+CBF_ACTIVADO = True
+CBF_D_MIN_DRON_DRON = RADIO_DRONE * 0.5  # Distancia de seguridad mínima entre centros de drones
+CBF_D_MIN_DRON_OBSTACULO = RADIO_DRONE + RADIO_OBSTACULO + 5.0 # Distancia de seguridad mínima del centro del dron a la superficie del obstáculo (aproximado)
+CBF_GAMMA = 0.5             # Parámetro de la CBF (qué tan rápido debe corregir, 0 < gamma <= 1)
+# Para la corrección simplificada, no usaremos un QP, sino un ajuste directo.
+CBF_FACTOR_CORRECCION_VELOCIDAD = 0.8 # Cuánto ajustar la velocidad para evitar colisión
+
+# --- Teclas de Control (Etapa 6) ---
+TECLA_PAUSA_REANUDAR = pygame.K_SPACE # Tecla Espacio
+TECLA_RESETEAR = pygame.K_r
+TECLA_ANADIR_DRON = pygame.K_a
+TECLA_QUITAR_DRON = pygame.K_q
