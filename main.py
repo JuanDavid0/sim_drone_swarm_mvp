@@ -3,4 +3,4 @@ from drone_simulation.simulation import Simulation # Importamos la clase Simulat
 
 if __name__ == "__main__":
     sim = Simulation()
-    sim.bucle_principal()
+    sim.bucle_principal_pygame()

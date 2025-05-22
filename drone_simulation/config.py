@@ -111,3 +111,5 @@ RNG_TEST_NUM_BINS_CHI2 = 10
 
 # Teclas de Control (Adicional para Etapa 7)
 TECLA_EJECUTAR_RNG_TESTS = pygame.K_t
+
+VERBOSE = True # Para imprimir información adicional en la consola
