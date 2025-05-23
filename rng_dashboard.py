@@ -26,7 +26,20 @@ class RNGDashboard(QMainWindow):
         ruta = "config_runtime.json"
         if os.path.exists(ruta):
             with open(ruta, "r") as f:
-                return json.load(f)
+                raw = json.load(f)
+                config = {}
+                for k, v in raw.items():
+                    if v in ("", None):
+                        config[k] = None
+                    else:
+                        try:
+                            config[k] = int(v)
+                        except ValueError:
+                            try:
+                                config[k] = float(v)
+                            except ValueError:
+                                config[k] = v
+                return config
         return {}
 
     def setup_generadores(self):

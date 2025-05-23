@@ -106,7 +106,7 @@ class ConfigLauncher(QWidget):
                     w.setValue(val or 0)
                 elif typ is float:
                     w = QDoubleSpinBox()
-                    w.setDecimals(4)
+                    w.setDecimals(2)
                     w.setSingleStep(0.1)
                     w.setMaximum(1e6)
                     w.setValue(val or 0.0)
