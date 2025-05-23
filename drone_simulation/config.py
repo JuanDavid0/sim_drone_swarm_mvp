@@ -72,7 +72,7 @@ K_BORDE_REPULSION = 800.0  # Reducido para que no sea tan violenta
 DISTANCIA_REACCION_BORDE = RADIO_DRONE * 6 # Que se active desde un poco más lejos
 
 # --- Parámetros de Control Barrier Functions (CBF - Etapa 6) ---
-CBF_ACTIVADO = True
+CBF_ACTIVADO = False
 CBF_D_MIN_DRON_DRON = RADIO_DRONE * 0.5  # Distancia de seguridad mínima entre centros de drones
 CBF_D_MIN_DRON_OBSTACULO = RADIO_DRONE + RADIO_OBSTACULO + 5.0 # Distancia de seguridad mínima del centro del dron a la superficie del obstáculo (aproximado)
 CBF_GAMMA = 0.5             # Parámetro de la CBF (qué tan rápido debe corregir, 0 < gamma <= 1)

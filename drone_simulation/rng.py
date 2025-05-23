@@ -113,5 +113,3 @@ class MiddleSquareRNG:
         range_width = upper_bound - lower_bound + 1
         # Usamos el flotante para obtener una distribución más uniforme en el rango
         return lower_bound + int(self.next_float() * range_width)
-
-# Podríamos añadir más generadores aquí (ej. LFSR) si es necesario.

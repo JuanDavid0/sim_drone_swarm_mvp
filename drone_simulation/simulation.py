@@ -16,90 +16,72 @@ import subprocess
 
 class Simulation:
     def __init__(self):
+        # 1) Inicializamos config_actual con defaults
         self.config_actual = types.SimpleNamespace()
+        for attr in dir(defaultConfig_module):
+            if not attr.startswith("__"):
+                setattr(self.config_actual, attr, getattr(defaultConfig_module, attr))
 
-        if len(sys.argv) > 1 and sys.argv[1] == "--use-runtime-config" and os.path.exists("config_runtime.json"):
-            with open("config_runtime.json", "r") as f:
-                runtime_config = json.load(f)
-            for attr in dir(defaultConfig_module):
-                if not attr.startswith("__"):
-                    default_val = getattr(defaultConfig_module, attr)
-                    setattr(self.config_actual, attr, runtime_config.get(attr, default_val))
-        else:
-            for attr in dir(defaultConfig_module):
-                if not attr.startswith("__"):
-                    setattr(self.config_actual, attr, getattr(defaultConfig_module, attr))
+        # 2) Si pasaron la flag y existe el JSON, sobrescribimos
+        if "--use-runtime-config" in sys.argv and os.path.exists("config_runtime.json"):
+            runtime = json.load(open("config_runtime.json", "r"))
+            for key, val in runtime.items():
+                if hasattr(self.config_actual, key):
+                    setattr(self.config_actual, key, val)
 
+        # 3) Inicialización de Pygame
         pygame.init()
         pygame.font.init()
-        self.pantalla = pygame.display.set_mode((self.config_actual.ANCHO_PANTALLA, self.config_actual.ALTO_PANTALLA))
-        pygame.display.set_caption(f"Sim Enjambre - Pygame (Ctrl Params)")
+        self.pantalla = pygame.display.set_mode((
+            self.config_actual.ANCHO_PANTALLA,
+            self.config_actual.ALTO_PANTALLA
+        ))
+        pygame.display.set_caption("Sim Enjambre - Pygame")
         self.reloj = pygame.time.Clock()
 
+        # 4) Banderas de control
         self.corriendo_simulacion = False
-        self.game_loop_activo = True
+        self.game_loop_activo    = True
 
+        # 5) Instancias RNG con las semillas ya cargadas
         self.rng_entorno = LCG(
-            seed=self.config_actual.GCL_SEED_ENTORNO,
-            multiplier=self.config_actual.GCL_MULTIPLIER_A,
-            increment=self.config_actual.GCL_INCREMENT_C,
-            modulus=self.config_actual.GCL_MODULUS_M
+            seed      = self.config_actual.GCL_SEED_ENTORNO,
+            multiplier= self.config_actual.GCL_MULTIPLIER_A,
+            increment = self.config_actual.GCL_INCREMENT_C,
+            modulus   = self.config_actual.GCL_MODULUS_M
         )
         self.rng_drones_decisiones = MiddleSquareRNG(
-            seed=self.config_actual.MIDDLE_SQUARE_SEED_DRONES,
-            num_digits=self.config_actual.N_DIGITS_MIDDLE_SQUARE
+            seed      = self.config_actual.MIDDLE_SQUARE_SEED_DRONES,
+            num_digits= self.config_actual.N_DIGITS_MIDDLE_SQUARE
         )
         self.rng_obstaculos_dinamicos = LCG(
-            seed=self.config_actual.GCL_SEED_OBSTACULOS_DYN,
-            multiplier=self.config_actual.GCL_MULTIPLIER_A_OBS,
-            increment=self.config_actual.GCL_INCREMENT_C_OBS,
-            modulus=self.config_actual.GCL_MODULUS_M_OBS
+            seed      = self.config_actual.GCL_SEED_OBSTACULOS_DYN,
+            multiplier= self.config_actual.GCL_MULTIPLIER_A_OBS,
+            increment = self.config_actual.GCL_INCREMENT_C_OBS,
+            modulus   = self.config_actual.GCL_MODULUS_M_OBS
         )
 
         if self.config_actual.VERBOSE:
-            print(f"Simulación Instanciada.")
-            print(f"  RNG Entorno (LCG) con semilla inicial: {self.rng_entorno.initial_seed}")
-            print(f"  RNG Drones (MiddleSquare) con semilla inicial: {self.rng_drones_decisiones.initial_seed}")
-            print(f"  RNG Obst. Dinámicos (LCG) con semilla inicial: {self.rng_obstaculos_dinamicos.initial_seed}")
+            print("Simulación instanciada con:")
+            print("  RNG Entorno — semilla:", self.rng_entorno.initial_seed)
+            print("  RNG Drones — semilla:", self.rng_drones_decisiones.initial_seed)
+            print("  RNG Obstáculos — semilla:", self.rng_obstaculos_dinamicos.initial_seed)
 
-        self.drones = []
+        # 6) Preparar grilla, contadores y fuentes
+        self.drones  = []
         self.obstaculos = []
-
         self.num_celdas_x = self.config_actual.ANCHO_PANTALLA // self.config_actual.TAMANO_CELDA_COBERTURA
-        self.num_celdas_y = self.config_actual.ALTO_PANTALLA // self.config_actual.TAMANO_CELDA_COBERTURA
+        self.num_celdas_y = self.config_actual.ALTO_PANTALLA  // self.config_actual.TAMANO_CELDA_COBERTURA
         self.grilla_cobertura = np.zeros((self.num_celdas_x, self.num_celdas_y), dtype=int)
         self.celdas_totales_cobertura = self.num_celdas_x * self.num_celdas_y
         self.porcentaje_cobertura = 0.0
-
-        self.font_metrics = pygame.font.SysFont(None, 22)
-        self.font_params = pygame.font.SysFont("Consolas", 15)
-        self.font_instructions = pygame.font.SysFont(None, 18)
-        self.tiempo_simulacion_total = 0.0
+        self.tiempo_simulacion_total  = 0.0
         self.colisiones_criticas_contador = 0
+        self.font_metrics     = pygame.font.SysFont(None, 22)
+        self.font_params = pygame.font.SysFont("Consolas", 15)
+        self.font_instructions= pygame.font.SysFont(None, 18)
 
-        self.parametros_editables_definicion = {
-            "NUM_DRONES_INICIAL": {"tipo": int, "min": 1, "max": 20, "paso": 1, "display_name": "Num Drones"},
-            "MASA_DRONE": {"tipo": float, "min": 1.0, "max": 50.0, "paso": 1.0, "display_name": "Masa Dron"},
-            "MAX_VELOCIDAD": {"tipo": float, "min": 10.0, "max": 300.0, "paso": 10.0, "display_name": "Max Vel"},
-            "K_COHESION": {"tipo": float, "min": 0.0, "max": 3.0, "paso": 0.1, "display_name": "K Cohesión"},
-            "K_SEPARATION": {"tipo": float, "min": 0.0, "max": 5000.0, "paso": 100.0, "display_name": "K Separación"},
-            "K_ALIGNMENT": {"tipo": float, "min": 0.0, "max": 3.0, "paso": 0.1, "display_name": "K Alineación"},
-            "K_FRONTIER_ATTRACTION": {"tipo": float, "min": 0.0, "max": 2.0, "paso": 0.1, "display_name": "K Frontera"},
-            "K_OBSTACLE_REPULSION": {"tipo": float, "min": 0.0, "max": 10000.0, "paso": 250.0, "display_name": "K Rep. Obs."},
-            "K_BORDE_REPULSION": {"tipo": float, "min": 0.0, "max": 5000.0, "paso": 100.0, "display_name": "K Rep. Borde"},
-            "SENSOR_RANGE_DRONE": {"tipo": int, "min": 50, "max": 400, "paso": 10, "display_name": "Rango Sensor"},
-            "RADIO_BUSQUEDA_FRONTERA_DRONE": {"tipo": int, "min": 50, "max": 500, "paso": 10, "display_name": "Rad. Bsq. Front."},
-            "GCL_SEED_ENTORNO": {"tipo": "semilla", "display_name": "Semilla Entorno"},
-            "MIDDLE_SQUARE_SEED_DRONES": {"tipo": "semilla_ms", "display_name": "Semilla Drones (MS)"},
-            "N_DIGITS_MIDDLE_SQUARE": {"tipo": int, "min": 2, "max": 8, "paso":1, "display_name": "Digitos MS"},
-            "PROBABILIDAD_FALLO_POR_COLISION_OBSTACULO": {"tipo": float, "min":0.0, "max":1.0, "paso":0.05, "display_name": "P(Fallo Obs)"},
-            "PROBABILIDAD_FALLO_POR_COLISION_DRON": {"tipo": float, "min":0.0, "max":1.0, "paso":0.05, "display_name": "P(Fallo Dron)"},
-        }
-        self.nombres_parametros_editables = list(self.parametros_editables_definicion.keys())
-        self.parametro_seleccionado_idx = 0
-        self.modo_edicion_texto_param = False
-        self.buffer_texto_param = ""
-
+        # 7) Estado inicial de la simulación
         self._reset_simulation_state(inicial=True)
     
     def _reset_simulation_state(self, inicial=False): # <--- AÑADIR inicial=False AQUÍ
@@ -375,144 +357,81 @@ class Simulation:
         self._detectar_y_manejar_colisiones()
         self.actualizar_grilla_cobertura()
 
-    def controlar_eventos_pygame(self, eventos): # Usa self.config_actual
+    def controlar_eventos_pygame(self, eventos):  # Usa self.config_actual
         for evento in eventos:
             if evento.type == pygame.QUIT:
-                self.game_loop_activo = False; self.corriendo_simulacion = False
-            if evento.type == pygame.KEYDOWN:
-                nombre_param_actual = self.nombres_parametros_editables[self.parametro_seleccionado_idx]
-                definicion_actual = self.parametros_editables_definicion[nombre_param_actual]
+                self.game_loop_activo = False
+                self.corriendo_simulacion = False
 
-                if self.modo_edicion_texto_param:
-                    if evento.key == pygame.K_RETURN:
-                        try:
-                            val_a_setear = None
-                            if self.buffer_texto_param.lower() == "none" or self.buffer_texto_param == "":
-                                val_a_setear = None
-                            elif definicion_actual["tipo"] == "semilla_ms": 
-                                val_a_setear = int(self.buffer_texto_param)
-                                n_digits = self.config_actual.N_DIGITS_MIDDLE_SQUARE
-                                if not (0 <= val_a_setear < 10**n_digits):
-                                    if self.config_actual.VERBOSE: print(f"Advertencia: Semilla MS {val_a_setear} fuera de rango para {n_digits} dígitos.")
-                            else: 
-                                val_a_setear = int(self.buffer_texto_param)
+            elif evento.type == pygame.KEYDOWN:
+                if evento.key == self.config_actual.TECLA_PAUSA_REANUDAR:
+                    self.corriendo_simulacion = not self.corriendo_simulacion
+                    if self.config_actual.VERBOSE:
+                        estado = "reanudada" if self.corriendo_simulacion else "pausada"
+                        print(f"Simulación {estado}.")
+
+                elif evento.key == self.config_actual.TECLA_RESETEAR:
+                    self._reset_simulation_state()
+                    if self.config_actual.VERBOSE:
+                        print("Simulación reseteada.")
+
+                elif evento.key == self.config_actual.TECLA_ANADIR_DRON:
+                    self._crear_drones_iniciales(cantidad=1)
+
+                elif evento.key == self.config_actual.TECLA_QUITAR_DRON:
+                    self._quitar_dron()
+
+                elif evento.key == self.config_actual.TECLA_EJECUTAR_RNG_TESTS:
+                    self.ejecutar_y_mostrar_pruebas_rng_consola()
+
                             
-                            setattr(self.config_actual, nombre_param_actual, val_a_setear)
-                            if self.config_actual.VERBOSE: print(f"Parámetro {nombre_param_actual} establecido a: {val_a_setear}")
-                        except ValueError:
-                            if self.config_actual.VERBOSE: print(f"Error: '{self.buffer_texto_param}' no es una semilla válida para {nombre_param_actual}.")
-                        self.modo_edicion_texto_param = False; self.buffer_texto_param = ""
-                    elif evento.key == pygame.K_BACKSPACE:
-                        self.buffer_texto_param = self.buffer_texto_param[:-1]
-                    elif evento.unicode.isdigit() or (self.buffer_texto_param == "" and evento.unicode == "-") or \
-                         (self.buffer_texto_param == "" and definicion_actual["tipo"] == "semilla" and evento.unicode.lower() == "n") or \
-                         (self.buffer_texto_param.lower() == "n" and definicion_actual["tipo"] == "semilla" and evento.unicode.lower() == "o") or \
-                         (self.buffer_texto_param.lower() == "no" and definicion_actual["tipo"] == "semilla" and evento.unicode.lower() == "n") or \
-                         (self.buffer_texto_param.lower() == "non" and definicion_actual["tipo"] == "semilla" and evento.unicode.lower() == "e"):
-                        self.buffer_texto_param += evento.unicode # Permite escribir "None"
-                    elif evento.key == pygame.K_ESCAPE:
-                        self.modo_edicion_texto_param = False; self.buffer_texto_param = ""
-                else: 
-                    if evento.key == self.config_actual.TECLA_PAUSA_REANUDAR:
-                        self.corriendo_simulacion = not self.corriendo_simulacion
-                        if self.config_actual.VERBOSE: print(f"Simulación {'reanudada' if self.corriendo_simulacion else 'pausada'}.")
-                    elif evento.key == self.config_actual.TECLA_RESETEAR:
-                        self._reset_simulation_state() 
-                        if self.config_actual.VERBOSE: print("Simulación reseteada con parámetros actuales.")
-                    elif evento.key == self.config_actual.TECLA_ANADIR_DRON: self._crear_drones_iniciales(cantidad=1)
-                    elif evento.key == self.config_actual.TECLA_QUITAR_DRON: self._quitar_dron()
-                    elif evento.key == self.config_actual.TECLA_EJECUTAR_RNG_TESTS: self.ejecutar_y_mostrar_pruebas_rng_consola()
-                    elif evento.key == pygame.K_UP:
-                        self.parametro_seleccionado_idx = (self.parametro_seleccionado_idx - 1) % len(self.nombres_parametros_editables)
-                        if self.config_actual.VERBOSE: print(f"Seleccionado: {self.nombres_parametros_editables[self.parametro_seleccionado_idx]}")
-                    elif evento.key == pygame.K_DOWN:
-                        self.parametro_seleccionado_idx = (self.parametro_seleccionado_idx + 1) % len(self.nombres_parametros_editables)
-                        if self.config_actual.VERBOSE: print(f"Seleccionado: {self.nombres_parametros_editables[self.parametro_seleccionado_idx]}")
-                    elif evento.key == pygame.K_LEFT or evento.key == pygame.K_MINUS:
-                        if definicion_actual["tipo"] != "semilla" and definicion_actual["tipo"] != "semilla_ms":
-                            valor_actual = getattr(self.config_actual, nombre_param_actual)
-                            nuevo_valor = valor_actual - definicion_actual["paso"]
-                            if definicion_actual["tipo"] == int: nuevo_valor = int(round(nuevo_valor))
-                            else: nuevo_valor = round(nuevo_valor, 2) 
-                            setattr(self.config_actual, nombre_param_actual, max(definicion_actual.get("min", nuevo_valor), nuevo_valor))
-                            if self.config_actual.VERBOSE: print(f"{nombre_param_actual} = {getattr(self.config_actual, nombre_param_actual)}")
-                    elif evento.key == pygame.K_RIGHT or evento.key == pygame.K_EQUALS or evento.key == pygame.K_PLUS:
-                        if definicion_actual["tipo"] != "semilla" and definicion_actual["tipo"] != "semilla_ms":
-                            valor_actual = getattr(self.config_actual, nombre_param_actual)
-                            nuevo_valor = valor_actual + definicion_actual["paso"]
-                            if definicion_actual["tipo"] == int: nuevo_valor = int(round(nuevo_valor))
-                            else: nuevo_valor = round(nuevo_valor, 2)
-                            setattr(self.config_actual, nombre_param_actual, min(definicion_actual.get("max", nuevo_valor), nuevo_valor))
-                            if self.config_actual.VERBOSE: print(f"{nombre_param_actual} = {getattr(self.config_actual, nombre_param_actual)}")
-                    elif evento.key == pygame.K_RETURN:
-                        if definicion_actual["tipo"] == "semilla" or definicion_actual["tipo"] == "semilla_ms":
-                            self.modo_edicion_texto_param = True
-                            current_val = getattr(self.config_actual, nombre_param_actual)
-                            self.buffer_texto_param = str(current_val) if current_val is not None else ""
-                            if self.config_actual.VERBOSE: print(f"Editando {nombre_param_actual}. Buffer: '{self.buffer_texto_param}'. Escriba valor y Enter, o Esc.")
-                            
-    def dibujar_elementos_pygame(self, pantalla_pygame, font_pygame_metrics, font_pygame_params): # Usa self.config_actual
+    def dibujar_elementos_pygame(self, pantalla_pygame, font_pygame_metrics, font_pygame_params):
         pantalla_pygame.fill(self.config_actual.GRIS_CLARO)
-        for x_idx in range(self.num_celdas_x):
-            for y_idx in range(self.num_celdas_y):
-                rect = pygame.Rect(x_idx * self.config_actual.TAMANO_CELDA_COBERTURA, y_idx * self.config_actual.TAMANO_CELDA_COBERTURA,
-                                   self.config_actual.TAMANO_CELDA_COBERTURA, self.config_actual.TAMANO_CELDA_COBERTURA)
-                color_celda = self.config_actual.COLOR_CELDA_CUBIERTA if self.grilla_cobertura[x_idx, y_idx] == 1 \
-                              else self.config_actual.COLOR_CELDA_NO_CUBIERTA
-                pygame.draw.rect(pantalla_pygame, color_celda, rect)
-        
-        for obs in self.obstaculos: obs.dibujar(pantalla_pygame) 
-        for dron in self.drones: dron.dibujar(pantalla_pygame)
-            
-        drones_activos_count = sum(1 for d in self.drones if d.esta_activo)
-        drones_inactivos_count = len(self.drones) - drones_activos_count
-        metric_texts = [
-            f"Tiempo: {self.tiempo_simulacion_total:.2f}s", f"Cobertura: {self.porcentaje_cobertura:.2f}%",
-            f"Drones Activos: {drones_activos_count}", f"Drones Inactivos: {drones_inactivos_count}",
+
+        # Dibujar grilla, obstáculos y drones
+        for x in range(self.num_celdas_x):
+            for y in range(self.num_celdas_y):
+                rect = pygame.Rect(
+                    x * self.config_actual.TAMANO_CELDA_COBERTURA,
+                    y * self.config_actual.TAMANO_CELDA_COBERTURA,
+                    self.config_actual.TAMANO_CELDA_COBERTURA,
+                    self.config_actual.TAMANO_CELDA_COBERTURA
+                )
+                color = (self.config_actual.COLOR_CELDA_CUBIERTA
+                        if self.grilla_cobertura[x, y] == 1
+                        else self.config_actual.COLOR_CELDA_NO_CUBIERTA)
+                pygame.draw.rect(pantalla_pygame, color, rect)
+
+        for obs in self.obstaculos:
+            obs.dibujar(pantalla_pygame)
+        for dron in self.drones:
+            dron.dibujar(pantalla_pygame)
+
+        # Métricas en pantalla
+        drones_act = sum(1 for d in self.drones if d.esta_activo)
+        drones_inact = len(self.drones) - drones_act
+        metrics = [
+            f"Tiempo: {self.tiempo_simulacion_total:.2f}s",
+            f"Cobertura: {self.porcentaje_cobertura:.2f}%",
+            f"Drones Activos: {drones_act}",
+            f"Drones Inactivos: {drones_inact}",
             f"Colisiones Críticas: {self.colisiones_criticas_contador}",
             f"Activaciones CBF: {cbf_module.get_cbf_activation_count()}"
         ]
-        y_offset_metrics = 10
-        for text_line in metric_texts:
-            surface = font_pygame_metrics.render(text_line, True, self.config_actual.NEGRO)
-            pantalla_pygame.blit(surface, (10, y_offset_metrics)); y_offset_metrics += 20
-        
-        param_area_y_start = y_offset_metrics + 10 
-        param_line_height = 18 
-        
-        titulo_params_str = "Params (Up/Down, L/R o -/+, Enter:Seed, R:Reset):"
-        if self.modo_edicion_texto_param:
-            titulo_params_str = f"Editando: {self.nombres_parametros_editables[self.parametro_seleccionado_idx]} (Enter/Esc)"
-        
-        titulo_params_surface = self.font_instructions.render(titulo_params_str, True, self.config_actual.NEGRO, self.config_actual.BLANCO) # Usar font_instructions
-        pantalla_pygame.blit(titulo_params_surface, (10, param_area_y_start))
-        param_area_y_start += 20 # Un poco más de espacio
+        y_off = 10
+        for line in metrics:
+            surf = font_pygame_metrics.render(line, True, self.config_actual.NEGRO)
+            pantalla_pygame.blit(surf, (10, y_off))
+            y_off += 20
 
-        for i, nombre_param_key in enumerate(self.nombres_parametros_editables):
-            definicion_param = self.parametros_editables_definicion[nombre_param_key]
-            display_name = definicion_param['display_name']
-            valor_actual = getattr(self.config_actual, nombre_param_key, "N/A")
-            display_valor_str = ""
-            if definicion_param["tipo"] == "semilla" or definicion_param["tipo"] == "semilla_ms":
-                display_valor_str = str(valor_actual) if valor_actual is not None else "None"
-            elif definicion_param["tipo"] == float: display_valor_str = f"{valor_actual:.1f}"
-            else: display_valor_str = str(valor_actual)
-
-            text_str = f"{'>' if i == self.parametro_seleccionado_idx else ' '}{display_name[:18].ljust(18)}: {display_valor_str.rjust(7)}"
-            if self.modo_edicion_texto_param and i == self.parametro_seleccionado_idx:
-                text_str = f">{display_name[:18].ljust(18)}: {self.buffer_texto_param}_"
-
-            color_texto_param = self.config_actual.ROJO if i == self.parametro_seleccionado_idx else self.config_actual.NEGRO
-            surface = font_pygame_params.render(text_str, True, color_texto_param, self.config_actual.BLANCO)
-            
-            if param_area_y_start + i * param_line_height < self.config_actual.ALTO_PANTALLA - param_line_height:
-                 pantalla_pygame.blit(surface, (15, param_area_y_start + i * param_line_height))
-
+        # Mensaje de pausa
         if not self.corriendo_simulacion:
-            pause_text_surface = font_pygame_metrics.render("PAUSADO (Espacio)", True, self.config_actual.ROJO)
-            text_rect = pause_text_surface.get_rect(center=(self.config_actual.ANCHO_PANTALLA // 2, 20))
-            pantalla_pygame.blit(pause_text_surface, text_rect)
+            pause_s = font_pygame_metrics.render("PAUSADO (Espacio)", True, self.config_actual.ROJO)
+            rc = pause_s.get_rect(center=(self.config_actual.ANCHO_PANTALLA // 2, 20))
+            pantalla_pygame.blit(pause_s, rc)
+            
         pygame.display.flip()
+
 
     def bucle_principal_pygame(self): # Nombre corregido
         # pygame.init() y pygame.font.init() ya están en self.__init__
