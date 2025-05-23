@@ -1,32 +1,44 @@
-# drone_simulation/simulation.py
 import pygame
 import numpy as np
-from . import config as defaultConfig_module # Para valores iniciales
+import json
+import os
+import sys
+from . import config as defaultConfig_module
 from .drone import Drone
 from .obstaculo import Obstaculo
 from . import cbf as cbf_module
 from .rng import LCG, MiddleSquareRNG
 from .rng_validator import perform_rng_quality_tests_from_scratch
-import types # Para SimpleNamespace
+import types
+import matplotlib.pyplot as plt
+from datetime import datetime
+import subprocess
 
 class Simulation:
     def __init__(self):
-        # Crear una copia editable de la configuración
         self.config_actual = types.SimpleNamespace()
-        for attr in dir(defaultConfig_module):
-            if not attr.startswith("__"): # Copiar solo atributos públicos
-                setattr(self.config_actual, attr, getattr(defaultConfig_module, attr))
+
+        if len(sys.argv) > 1 and sys.argv[1] == "--use-runtime-config" and os.path.exists("config_runtime.json"):
+            with open("config_runtime.json", "r") as f:
+                runtime_config = json.load(f)
+            for attr in dir(defaultConfig_module):
+                if not attr.startswith("__"):
+                    default_val = getattr(defaultConfig_module, attr)
+                    setattr(self.config_actual, attr, runtime_config.get(attr, default_val))
+        else:
+            for attr in dir(defaultConfig_module):
+                if not attr.startswith("__"):
+                    setattr(self.config_actual, attr, getattr(defaultConfig_module, attr))
 
         pygame.init()
         pygame.font.init()
         self.pantalla = pygame.display.set_mode((self.config_actual.ANCHO_PANTALLA, self.config_actual.ALTO_PANTALLA))
-        pygame.display.set_caption(f"Sim Enjambre - Pygame (Ctrl Params)") # Título más corto
+        pygame.display.set_caption(f"Sim Enjambre - Pygame (Ctrl Params)")
         self.reloj = pygame.time.Clock()
-        
-        self.corriendo_simulacion = False 
+
+        self.corriendo_simulacion = False
         self.game_loop_activo = True
 
-        # --- Inicialización de RNGs (usando self.config_actual) ---
         self.rng_entorno = LCG(
             seed=self.config_actual.GCL_SEED_ENTORNO,
             multiplier=self.config_actual.GCL_MULTIPLIER_A,
@@ -43,7 +55,7 @@ class Simulation:
             increment=self.config_actual.GCL_INCREMENT_C_OBS,
             modulus=self.config_actual.GCL_MODULUS_M_OBS
         )
-        
+
         if self.config_actual.VERBOSE:
             print(f"Simulación Instanciada.")
             print(f"  RNG Entorno (LCG) con semilla inicial: {self.rng_entorno.initial_seed}")
@@ -52,20 +64,19 @@ class Simulation:
 
         self.drones = []
         self.obstaculos = []
-        
+
         self.num_celdas_x = self.config_actual.ANCHO_PANTALLA // self.config_actual.TAMANO_CELDA_COBERTURA
         self.num_celdas_y = self.config_actual.ALTO_PANTALLA // self.config_actual.TAMANO_CELDA_COBERTURA
         self.grilla_cobertura = np.zeros((self.num_celdas_x, self.num_celdas_y), dtype=int)
         self.celdas_totales_cobertura = self.num_celdas_x * self.num_celdas_y
         self.porcentaje_cobertura = 0.0
-        
-        self.font_metrics = pygame.font.SysFont(None, 22) # Ligeramente más pequeño para más métricas
-        self.font_params = pygame.font.SysFont("Consolas", 15) 
+
+        self.font_metrics = pygame.font.SysFont(None, 22)
+        self.font_params = pygame.font.SysFont("Consolas", 15)
         self.font_instructions = pygame.font.SysFont(None, 18)
         self.tiempo_simulacion_total = 0.0
         self.colisiones_criticas_contador = 0
 
-        # --- Definición de Parámetros Editables ---
         self.parametros_editables_definicion = {
             "NUM_DRONES_INICIAL": {"tipo": int, "min": 1, "max": 20, "paso": 1, "display_name": "Num Drones"},
             "MASA_DRONE": {"tipo": float, "min": 1.0, "max": 50.0, "paso": 1.0, "display_name": "Masa Dron"},
@@ -86,10 +97,10 @@ class Simulation:
         }
         self.nombres_parametros_editables = list(self.parametros_editables_definicion.keys())
         self.parametro_seleccionado_idx = 0
-        self.modo_edicion_texto_param = False 
+        self.modo_edicion_texto_param = False
         self.buffer_texto_param = ""
 
-        self._reset_simulation_state(inicial=True) # Pasar el flag 'inicial'
+        self._reset_simulation_state(inicial=True)
     
     def _reset_simulation_state(self, inicial=False): # <--- AÑADIR inicial=False AQUÍ
         if not inicial and self.config_actual.VERBOSE:
@@ -122,6 +133,95 @@ class Simulation:
         # No iniciar corriendo al resetear, permitir que el usuario lo haga o que el bucle lo maneje
         self.corriendo_simulacion = False if not inicial else True 
         if not inicial and self.config_actual.VERBOSE: print("Estado de simulación reseteado.")
+        if not inicial:
+            self.export_rng_test_results_as_pdf()
+        if not inicial:
+            try:
+                subprocess.Popen([sys.executable, "rng_dashboard.py"])
+                if self.config_actual.VERBOSE:
+                    print("[✓] Dashboard RNG lanzado en ventana separada.")
+            except Exception as e:
+                print(f"[X] Error al lanzar dashboard RNG: {e}")
+
+
+        
+    # Preparar el módulo para exportar gráficos de pruebas RNG desde la simulación automáticamente
+    def export_rng_test_results_as_pdf(self):
+        os.makedirs("rng_reports", exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filepath = os.path.join("rng_reports", f"rng_report_{timestamp}.pdf")
+
+        from .rng_validator import perform_rng_quality_tests_from_scratch
+        from .rng import LCG, MiddleSquareRNG
+
+        resultados = {
+            "Entorno": perform_rng_quality_tests_from_scratch(
+                LCG(seed=self.rng_entorno.initial_seed,
+                    multiplier=self.config_actual.GCL_MULTIPLIER_A,
+                    increment=self.config_actual.GCL_INCREMENT_C,
+                    modulus=self.config_actual.GCL_MODULUS_M),
+                self.config_actual.RNG_TEST_NUM_SAMPLES
+            ),
+            "Drones": perform_rng_quality_tests_from_scratch(
+                MiddleSquareRNG(seed=self.rng_drones_decisiones.initial_seed,
+                                num_digits=self.config_actual.N_DIGITS_MIDDLE_SQUARE),
+                self.config_actual.RNG_TEST_NUM_SAMPLES
+            ),
+            "Obstaculos": perform_rng_quality_tests_from_scratch(
+                LCG(seed=self.rng_obstaculos_dinamicos.initial_seed,
+                    multiplier=self.config_actual.GCL_MULTIPLIER_A_OBS,
+                    increment=self.config_actual.GCL_INCREMENT_C_OBS,
+                    modulus=self.config_actual.GCL_MODULUS_M_OBS),
+                self.config_actual.RNG_TEST_NUM_SAMPLES
+            )
+        }
+
+        fig, axes = plt.subplots(3, 1, figsize=(8, 10))
+        fig.suptitle("Informe de Pruebas RNG (Simulación)", fontsize=14)
+
+        # Chi²
+        chi2 = resultados["Entorno"]["chi_squared_uniformity"]
+        axes[0].bar(range(len(chi2["observed_counts"])), chi2["observed_counts"], label="Observado")
+        axes[0].axhline(chi2["expected_per_bin"], color='r', linestyle='--', label="Esperado")
+        axes[0].set_title("Chi² - Entorno")
+        axes[0].legend()
+
+        # K-S
+        ks = resultados["Drones"]["kolmogorov_smirnov_uniformity"]
+        sorted_samples = sorted([self.rng_drones_decisiones.next_float() for _ in range(1000)])
+        ecdf_y = [i / len(sorted_samples) for i in range(1, len(sorted_samples)+1)]
+        axes[1].plot(sorted_samples, ecdf_y, label="ECDF")
+        axes[1].plot(sorted_samples, sorted_samples, linestyle="--", label="CDF Teórica")
+        axes[1].set_title("Kolmogorov-Smirnov - Drones")
+        axes[1].legend()
+
+        # Autocorrelación
+        autocorr = resultados["Obstaculos"]["autocorrelation_lag1_numpy"].get("value", 0)
+        axes[2].text(0.1, 0.5, f"Autocorrelación lag-1:\n{autocorr:.4f}", fontsize=14)
+        axes[2].axis("off")
+
+        plt.tight_layout(rect=[0, 0, 1, 0.95])
+        fig.savefig(filepath)
+        plt.close(fig)
+
+        if self.config_actual.VERBOSE:
+            print(f"[✓] Informe de pruebas RNG guardado en: {filepath}")
+
+        # Lanzar dashboard si existe el archivo
+        dashboard_path = os.path.join(os.path.dirname(__file__), "..", "rng_dashboard.py")
+        dashboard_path = os.path.abspath(dashboard_path)
+
+        if os.path.exists(dashboard_path):
+            try:
+                subprocess.Popen(["python", dashboard_path, filepath])
+                if self.config_actual.VERBOSE:
+                    print("[✓] Dashboard RNG lanzado.")
+            except Exception as e:
+                print(f"[!] Error al lanzar el dashboard: {e}")
+        else:
+            print(f"[!] No se encontró el dashboard en: {dashboard_path}")
+
+
 
     def _crear_drones_iniciales(self, cantidad=None):
         if cantidad is None:
@@ -429,6 +529,8 @@ class Simulation:
             self.dibujar_elementos_pygame(self.pantalla, self.font_metrics, self.font_params) # Pasar fuentes
             self.reloj.tick(self.config_actual.FPS)
         pygame.quit()
+        
+    
 
     def ejecutar_y_mostrar_pruebas_rng_consola(self): # Usa self.config_actual
         # from .rng_validator import perform_rng_quality_tests_from_scratch # Ya está importado arriba
@@ -464,10 +566,3 @@ class Simulation:
                             print(f"    {k.replace('_', ' ').title()}: {v:.4f}" if isinstance(v, float) else f"    {k.replace('_', ' ').title()}: {v}")
                 else: print(f"    {result_data}")
         print("-----------------------------------------------------\n")
-
-    # --- Métodos para Dash (Placeholder por ahora si no se usan) ---
-    def start_sim(self): self.corriendo_simulacion = True
-    def pause_sim(self): self.corriendo_simulacion = False
-    def reset_sim_from_dash(self, params_dash=None): self._reset_simulation_state()
-    def get_estado_para_dash(self) -> dict: return {} 
-    def ejecutar_pruebas_rng_para_dash(self) -> dict: return {}
