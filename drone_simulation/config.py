@@ -2,7 +2,7 @@
 import pygame
 # Dimensiones de la pantalla de Pygame
 ANCHO_PANTALLA = 800
-ALTO_PANTALLA = 600
+ALTO_PANTALLA = 800
 
 # Colores (formato RGB)
 BLANCO = (255, 255, 255)
@@ -61,10 +61,10 @@ COLOR_CELDA_NO_CUBIERTA = (200, 200, 200)
 COLOR_CELDA_CUBIERTA = (173, 216, 230)
 
 # --- Parámetros de Fallo y Colisión ---
-PROBABILIDAD_FALLO_POR_COLISION_OBSTACULO = 0.15 # Reducido para observar más tiempo
-PROBABILIDAD_FALLO_POR_COLISION_DRON = 0.1    # Reducido
+PROBABILIDAD_FALLO_POR_COLISION_OBSTACULO = 0.8# Reducido para observar más tiempo
+PROBABILIDAD_FALLO_POR_COLISION_DRON = 0.8    # Reducido
 COLOR_DRON_INACTIVO = (100, 100, 100)
-DISTANCIA_COLISION_DRON_DRON = RADIO_DRONE * 1.8 # Para que un contacto más leve cuente
+DISTANCIA_COLISION_DRON_DRON = RADIO_DRONE * 2 # Para que un contacto más leve cuente
 DISTANCIA_COLISION_DRON_OBSTACULO = RADIO_DRONE + RADIO_OBSTACULO * 0.7 # Menos superposición para colisión
 
 # --- Parámetros para Repulsión de Bordes ---
@@ -79,7 +79,7 @@ CBF_GAMMA = 0.5             # Parámetro de la CBF (qué tan rápido debe correg
 # Para la corrección simplificada, no usaremos un QP, sino un ajuste directo.
 CBF_FACTOR_CORRECCION_VELOCIDAD = 0.8 # Cuánto ajustar la velocidad para evitar colisión
 
-# --- Teclas de Control (Etapa 6) ---
+
 TECLA_PAUSA_REANUDAR = pygame.K_SPACE # Tecla Espacio
 TECLA_RESETEAR = pygame.K_r
 TECLA_ANADIR_DRON = pygame.K_a
