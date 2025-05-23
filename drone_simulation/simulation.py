@@ -22,12 +22,28 @@ class Simulation:
             if not attr.startswith("__"):
                 setattr(self.config_actual, attr, getattr(defaultConfig_module, attr))
 
-        # 2) Si pasaron la flag y existe el JSON, sobrescribimos
+        # 2) Cargar runtime y normalizar
         if "--use-runtime-config" in sys.argv and os.path.exists("config_runtime.json"):
             runtime = json.load(open("config_runtime.json", "r"))
-            for key, val in runtime.items():
-                if hasattr(self.config_actual, key):
-                    setattr(self.config_actual, key, val)
+            for key, raw_val in runtime.items():
+                if not hasattr(self.config_actual, key):
+                    continue
+                default_val = getattr(defaultConfig_module, key)
+                # Si es semilla (nombre contiene "SEED") o default_val es None:
+                if ("SEED" in key or default_val is None) and raw_val not in (None, ""):
+                    try:
+                        val = int(raw_val)
+                    except ValueError:
+                        val = None
+                # Si era int:
+                elif isinstance(default_val, int):
+                    val = int(raw_val)
+                # Si era float:
+                elif isinstance(default_val, float):
+                    val = float(raw_val)
+                else:
+                    val = raw_val
+                setattr(self.config_actual, key, val)
 
         # 3) Inicialización de Pygame
         pygame.init()
