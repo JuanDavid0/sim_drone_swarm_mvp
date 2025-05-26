@@ -1,6 +1,5 @@
 # drone_simulation/rng_validator.py
 import numpy as np
-# NO importaremos scipy.stats aquí para las funciones de prueba principales
 from . import config # Para parámetros de prueba como RNG_TEST_NUM_BINS_CHI2
 
 # --- Funciones auxiliares para matemáticas (si son necesarias) ---
@@ -26,8 +25,6 @@ def chi2_cdf(chi2_stat, df):
     """
     print(f"Advertencia: chi2_cdf no implementada. Estadístico Chi2: {chi2_stat}, df: {df}. Consulte una tabla.")
     if df <= 0: return np.nan
-    # Podríamos hardcodear algunos valores críticos aquí para df comunes y alpha=0.05
-    # Ejemplo para df=9 (10 bins - 1), alpha=0.05, valor crítico es aprox 16.919
     if df == 9 and chi2_stat > 16.919: return 0.04 # Simula p < 0.05
     if df == 9 and chi2_stat <= 16.919: return 0.10 # Simula p >= 0.05
     return np.nan # No podemos calcular el p-value exacto
@@ -122,7 +119,6 @@ def run_kolmogorov_smirnov_test_uniform_floats_from_scratch(float_samples: list)
     # Para N > ~35, se pueden usar aproximaciones basadas en la Serie de Kolmogorov
     # o comparar D_n * sqrt(n) con valores críticos (e.g., 1.36 para alpha=0.05)
     critical_value_approx = 0.0
-    significance_level_alpha = 0.05 # Ejemplo
     if n > 35: # Aproximación para N grande
         # Valor crítico para D_alpha es K_alpha / sqrt(n)
         # K_alpha para 0.05 es aprox 1.358
