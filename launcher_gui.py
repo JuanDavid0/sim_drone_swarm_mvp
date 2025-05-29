@@ -2,89 +2,58 @@ import sys, os, json, importlib, subprocess
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QLabel, QVBoxLayout, QHBoxLayout,
     QScrollArea, QGroupBox, QFormLayout, QSpinBox, QDoubleSpinBox,
-    QLineEdit, QPushButton, QSizePolicy
+    QLineEdit, QPushButton, QSizePolicy, QCheckBox
 )
 from PyQt5.QtCore import Qt
 
-# Carga de valores por defecto y descripciones
-def cargar_config_y_descripciones():
-    cfg = importlib.import_module("drone_simulation.config")
+# Carga de valores por defecto y descripciones SOLO para las variables editables
+def cargar_config_y_descripciones_editables():
+    """
+    Define qué variables aparecerán en la GUI y sus tipos.
+    Las variables no listadas aquí usarán su valor de config.py
+    y no serán visibles ni editables en el launcher.
+    """
     return {
-        "Simulación": [
-            ("NUM_DRONES_INICIAL",   int,   "Cantidad de drones que aparecen al iniciar la simulación"),
-            ("FPS",                  float, "Velocidad de refresco de la simulación (frames por segundo)"),
-            ("DELTA_T",              float, "Paso de tiempo entre cada frame (1/FPS)"),
+        "Simulación General": [
+            ("NUM_DRONES_INICIAL", int, "Cantidad de drones al iniciar"),
+            ("FPS", float, "Velocidad de refresco visual (frames por segundo)"),
         ],
-        "Drones": [
-            ("RADIO_DRONE",          float, "Radio (en píxeles) que ocupa cada dron en pantalla"),
-            ("MASA_DRONE",           float, "Masa usada en el cálculo de aceleraciones (inercia)"),
-            ("MAX_VELOCIDAD",        float, "Velocidad máxima permitida para cada dron"),
-        ],
-        "Fuerzas": [
-            ("K_COHESION",           float, "Fuerza de atracción hacia el centro de los vecinos"),
-            ("K_SEPARATION",         float, "Fuerza de repulsión para evitar aglomeraciones"),
-            ("K_ALIGNMENT",          float, "Fuerza que alinea su velocidad con la de los vecinos"),
-            ("K_FRONTIER_ATTRACTION",float, "Fuerza que empuja al dron hacia zonas sin cubrir"),
+        "Comportamiento del Enjambre": [
+            ("K_COHESION", float, "Fuerza de atracción grupal"),
+            ("K_SEPARATION", float, "Fuerza de repulsión entre drones"),
+            ("K_ALIGNMENT", float, "Fuerza de alineamiento de velocidad"),
+            ("K_FRONTIER_ATTRACTION", float, "Fuerza de atracción a zonas no cubiertas"),
+            ("SENSOR_RANGE_DRONE", float, "Rango de detección de otros drones"),
+            ("MAX_VELOCIDAD", float, "Velocidad máxima permitida"),
+            ("MAX_FUERZA", float, "Fuerza máxima aplicable"),
         ],
         "Obstáculos": [
-            ("NUM_OBSTACULOS",               int,   "Número inicial de obstáculos estáticos"),
-            ("MIN_TAMANO_OBSTACULO",         float, "Diámetro mínimo de los obstáculos generados"),
-            ("MAX_TAMANO_OBSTACULO",         float, "Diámetro máximo de los obstáculos generados"),
-            ("K_OBSTACLE_REPULSION",         float, "Constante de repulsión frente a obstáculos"),
-            ("OBSTACULOS_DINAMICOS_PORCENTAJE", float, "Fracción de obstáculos que son dinámicos"),
-            ("TIEMPO_VIDA_OBSTACULO_MIN",    float, "Tiempo mínimo que permanece activo un obstáculo dinámico (s)"),
-            ("TIEMPO_VIDA_OBSTACULO_MAX",    float, "Tiempo máximo que permanece activo un obstáculo dinámico (s)"),
-            ("TIEMPO_RESPAWN_OBSTACULO_MIN", float, "Retraso mínimo antes de regenerar un obstáculo dinámico (s)"),
-            ("TIEMPO_RESPAWN_OBSTACULO_MAX", float, "Retraso máximo antes de regenerar un obstáculo dinámico (s)"),
-            ("GENERAR_NUEVOS_OBSTACULOS_INTERVALO", float, "Intervalo entre creación automática de nuevos obstáculos (s)"),
-            ("MAX_OBSTACULOS_SIMULTANEOS",   int,   "Límite de obstáculos activos en pantalla"),
+            ("NUM_OBSTACULOS", int, "Número inicial de obstáculos"),
+            ("K_OBSTACLE_REPULSION", float, "Fuerza de repulsión a obstáculos"),
+            ("OBSTACULOS_DINAMICOS_PORCENTAJE", float, "Fracción de obstáculos dinámicos (0 a 1)"),
+            ("GENERAR_NUEVOS_OBSTACULOS_INTERVALO", float, "Intervalo de generación de nuevos obs. (s)"),
         ],
-        "Frontera": [
-            ("SENSOR_RANGE_DRONE",          float, "Distancia máxima a la que detecta otros drones"),
-            ("RADIO_BUSQUEDA_FRONTERA_DRONE", float, "Radio de búsqueda para localizar celdas no cubiertas"),
+        "Control Barrier Functions (CBF)": [
+            ("CBF_ACTIVADO", bool, "Activar/Desactivar Control Barrier Functions"),
+            ("CBF_D_MIN_DRON_DRON", float, "Distancia mínima de seguridad (CBF)"),
+            ("CBF_FACTOR_CORRECCION_VELOCIDAD", float, "Agresividad de corrección CBF"),
         ],
-        "Cobertura": [
-            ("TAMANO_CELDA_COBERTURA",      int,   "Tamaño de cada celda de la grilla de cobertura (píxeles)"),
+         "Cobertura": [
+            ("TAMANO_CELDA_COBERTURA", int, "Tamaño de celda para mapa de cobertura (px)"),
         ],
-        "Colisiones": [
-            ("PROBABILIDAD_FALLO_POR_COLISION_OBSTACULO", float, "Probabilidad de inactivar un dron al chocar con obstáculo"),
-            ("PROBABILIDAD_FALLO_POR_COLISION_DRON",      float, "Probabilidad de inactivar un dron al colisionar con otro dron"),
-        ],
-        "Bordes": [
-            ("K_BORDE_REPULSION",           float, "Constante de repulsión cerca de los límites de la ventana"),
-            ("DISTANCIA_REACCION_BORDE",    float, "Distancia desde el borde a la que empieza a repeler"),
-        ],
-        "CBF": [
-            ("CBF_ACTIVADO",                int,   "0 = CBF desactivadas, 1 = activadas para evitar colisiones"),
-            ("CBF_D_MIN_DRON_DRON",         float, "Distancia mínima de seguridad entre drones (CBF)"),
-            ("CBF_D_MIN_DRON_OBSTACULO",    float, "Distancia mínima de seguridad dron-obstáculo (CBF)"),
-            ("CBF_GAMMA",                   float, "Tasa de corrección de la función de barrera (γ)"),
-            ("CBF_FACTOR_CORRECCION_VELOCIDAD", float, "Multiplicador para ajustar velocidad bajo CBF"),
-        ],
-        "RNG": [
-            ("GCL_SEED_ENTORNO",            str,   "Semilla inicial del generador congruencial para entorno"),
-            ("GCL_MULTIPLIER_A",            str,   "Multiplicador 'a' en la fórmula LCG (entero grande)"),
-            ("GCL_INCREMENT_C",             str,   "Incremento 'c' en la fórmula LCG (entero grande)"),
-            ("GCL_MODULUS_M",               str,   "Módulo 'm' en la fórmula LCG (entero grande)"),
-            ("MIDDLE_SQUARE_SEED_DRONES",   str,   "Semilla de N dígitos para Middle-Square (drones)"),
-            ("N_DIGITS_MIDDLE_SQUARE",      int,   "Número de dígitos usados en Middle-Square"),
-            ("GCL_SEED_OBSTACULOS_DYN",     str,   "Semilla LCG para obst dinámicos"),
-            ("GCL_MULTIPLIER_A_OBS",        str,   "Multiplicador 'a' LCG obstáculos dinámicos"),
-            ("GCL_INCREMENT_C_OBS",         str,   "Incremento 'c' LCG obstáculos dinámicos"),
-            ("GCL_MODULUS_M_OBS",           str,   "Módulo 'm' LCG obstáculos dinámicos"),
-            ("RNG_TEST_NUM_SAMPLES",        int,   "Cantidad de muestras para las pruebas RNG"),
-            ("RNG_TEST_NUM_BINS_CHI2",      int,   "Número de bins en la prueba Chi²"),
-        ]
     }
 
 class ConfigLauncher(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Configuración Simulación de Drones")
-        self.resize(600, 700)
-        self.defaults = cargar_config_y_descripciones()
+        self.resize(700, 700)
+        self.config_editable = cargar_config_y_descripciones_editables()
         self.campos = {}
+        # Cargamos el módulo config base para obtener los valores por defecto
+        self.cfg_base = importlib.import_module("drone_simulation.config")
         self._build_ui()
+        self.cargar_desde_json("config_runtime.json") # Intentar cargar la última config
 
     def _build_ui(self):
         main_layout = QVBoxLayout(self)
@@ -92,26 +61,33 @@ class ConfigLauncher(QWidget):
         container = QWidget()
         vbox = QVBoxLayout(container)
 
-        # Para cada categoría, crear un GroupBox
-        for cat, items in self.defaults.items():
+        # Crear GroupBox solo para las categorías con variables editables
+        for cat, items in self.config_editable.items():
             gb = QGroupBox(cat)
             form = QFormLayout(gb)
             for key, typ, desc in items:
-                # obtener valor por defecto
-                val = getattr(importlib.import_module("drone_simulation.config"), key)
-                # escoger widget según tipo
+                try:
+                    val = getattr(self.cfg_base, key)
+                except AttributeError:
+                    print(f"Advertencia: La variable {key} no se encontró en config.py, usando valor genérico.")
+                    val = 0 if typ is int else 0.0 if typ is float else False if typ is bool else ""
+
                 if typ is int:
                     w = QSpinBox()
                     w.setMaximum(1_000_000)
-                    w.setValue(val or 0)
+                    w.setValue(int(val))
                 elif typ is float:
                     w = QDoubleSpinBox()
                     w.setDecimals(2)
                     w.setSingleStep(0.1)
-                    w.setMaximum(1e6)
-                    w.setValue(val or 0.0)
-                else:  # str / semilla
-                    w = QLineEdit("" if val is None else str(val))
+                    w.setMaximum(1_000_000)
+                    w.setValue(float(val))
+                elif typ is bool: # Usar QCheckBox para booleanos
+                    w = QCheckBox()
+                    w.setChecked(bool(val))
+                else: # str (aunque no hayamos definido strings editables)
+                    w = QLineEdit(str(val))
+
                 w.setToolTip(desc)
                 form.addRow(f"{key}:", w)
                 lbl = QLabel(desc)
@@ -125,10 +101,49 @@ class ConfigLauncher(QWidget):
         scroll.setWidgetResizable(True)
         main_layout.addWidget(scroll)
 
+        btn_layout = QHBoxLayout()
+        btn_reset = QPushButton("Cargar Defectos")
+        btn_reset.clicked.connect(self.cargar_defectos)
         btn = QPushButton("Iniciar Simulación")
         btn.clicked.connect(self._save_and_launch)
         btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        main_layout.addWidget(btn)
+        
+        btn_layout.addWidget(btn_reset)
+        btn_layout.addWidget(btn)
+        main_layout.addLayout(btn_layout)
+
+
+    def cargar_defectos(self):
+        """ Recarga los valores por defecto desde config.py """
+        for key, w in self.campos.items():
+             try:
+                val = getattr(self.cfg_base, key)
+                if isinstance(w, QSpinBox): w.setValue(int(val))
+                elif isinstance(w, QDoubleSpinBox): w.setValue(float(val))
+                elif isinstance(w, QCheckBox): w.setChecked(bool(val))
+                else: w.setText(str(val))
+             except AttributeError:
+                 print(f"Error al cargar defecto para {key}")
+
+
+    def cargar_desde_json(self, filepath="config_runtime.json"):
+        """ Carga valores desde el JSON si existe. """
+        if os.path.exists(filepath):
+            try:
+                with open(filepath, "r") as f:
+                    data = json.load(f)
+                
+                for key, w in self.campos.items():
+                    if key in data:
+                        val = data[key]
+                        if isinstance(w, QSpinBox): w.setValue(int(val))
+                        elif isinstance(w, QDoubleSpinBox): w.setValue(float(val))
+                        elif isinstance(w, QCheckBox): w.setChecked(bool(val))
+                        else: w.setText(str(val))
+            except Exception as e:
+                print(f"Error al cargar {filepath}: {e}")
+        else:
+            self.cargar_defectos() # Si no hay JSON, carga los de config.py
 
     def _save_and_launch(self):
         out = {}
@@ -137,13 +152,25 @@ class ConfigLauncher(QWidget):
                 out[key] = w.value()
             elif isinstance(w, QDoubleSpinBox):
                 out[key] = w.value()
+            elif isinstance(w, QCheckBox):
+                out[key] = bool(w.isChecked()) # Guardar como booleano o int 0/1
             else:
                 txt = w.text().strip()
                 out[key] = None if txt.lower() in ("", "none") else txt
-        # guardar
+        
+        # Cargar TODAS las variables de config.py
+        all_config = {k: getattr(self.cfg_base, k) 
+                      for k in dir(self.cfg_base) 
+                      if not k.startswith('_') and isinstance(getattr(self.cfg_base, k), (int, float, bool, str, tuple))}
+
+        # Sobreescribir con las variables editadas en la GUI
+        all_config.update(out)
+
+        # Guardar el JSON completo (variables fijas + editadas)
         with open("config_runtime.json", "w") as f:
-            json.dump(out, f, indent=2)
-        # lanzar
+            json.dump(all_config, f, indent=2)
+
+        # Lanzar la simulación
         subprocess.Popen([sys.executable, "main.py", "--use-runtime-config"])
         self.close()
 
