@@ -2,6 +2,7 @@
 import pygame
 from .engine import SimulationEngine
 from .reporter import Reporter
+import os, subprocess, sys
 
 class SimulationUI:
     def __init__(self, config, rngs):
@@ -61,7 +62,8 @@ class SimulationUI:
                             self.engine.drones.pop()
 
                     elif event.key == self.config.TECLA_EJECUTAR_RNG_TESTS:
-                        self.reporter.export_pdf() # O la función que tengas para tests
+                        dash = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'rng_dashboard.py'))
+                        subprocess.Popen([sys.executable, dash])
 
                     # Teclas para controlar la velocidad de simulación
                     elif event.key == pygame.K_PLUS or event.key == pygame.K_KP_PLUS:

@@ -93,11 +93,6 @@ def run_kolmogorov_smirnov_test_uniform_floats_from_scratch(float_samples: list)
     d_minus_max = 0.0
     
     for i in range(n):
-        # F(x_i) para uniforme [0,1) es x_i
-        # ECDF F_n(x_i) es (i+1)/n (o i/n si se indexa desde 0 para el primer valor)
-        # Usamos la definición D_n = max |F_n(x) - F(x)|
-        # F_n(x_i) = (i+1)/n
-        # F(x_i) = sorted_samples[i] (ya que es la CDF uniforme)
         
         f_n_xi = (i + 1) / n
         f_xi = sorted_samples[i]

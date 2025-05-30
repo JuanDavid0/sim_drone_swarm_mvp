@@ -1,8 +1,8 @@
 import pygame
 
 # Dimensiones de la pantalla de Pygame
-ANCHO_PANTALLA = 800
-ALTO_PANTALLA = 800
+ANCHO_PANTALLA = 500
+ALTO_PANTALLA = 500
 
 # Colores (formato RGB) - Se mantienen los que tenías
 BLANCO = (219, 31, 0, 86)
@@ -17,9 +17,6 @@ GRIS_CLARO = (89, 92, 77, 86)
 # Estas variables tendrán valores fijos para simplificar la experimentación.
 # Se cargarán desde aquí si no se especifican o editan en la GUI/JSON.
 # ==============================================================================
-
-# Simulación
-DELTA_T = 1 / 60.0  # Fijado a 1/60 (se puede recalcular si FPS cambia)
 
 # Drones Físicos
 RADIO_DRONE = 10.0
@@ -53,7 +50,7 @@ DISTANCIA_COLISION_DRON_OBSTACULO = 2 # Aumentado para evitar colisiones frecuen
 
 # Bordes Fijos
 K_BORDE_REPULSION = 2000.0
-DISTANCIA_REACCION_BORDE = 10 # 20.0
+DISTANCIA_REACCION_BORDE = RADIO_DRONE * 2.5  # Aumentado para evitar colisiones frecuentes con los bordes
 
 # CBF Fijos
 CBF_D_MIN_DRON_OBSTACULO = RADIO_DRONE + RADIO_OBSTACULO
@@ -93,20 +90,21 @@ VERBOSE = True
 # Simulación General
 NUM_DRONES_INICIAL = 15     # Base: 15; Disperso: 10; Agresivo: 25; Cauteloso: 10
 FPS = 60.0                  # Mantener a 60 para DELTA_T = 1/60
+DELTA_T = 1 / FPS  # Intervalo de tiempo entre frames 
 
 # Comportamiento del Enjambre
-K_COHESION = 4.0            # Base: 1.0; Disperso: 0.2; Agresivo: 0.8; Cauteloso: 1.0
-K_SEPARATION = 500.0        # Base: 1000; Disperso: 2000; Agresivo: 1200; Cauteloso: 800
-K_ALIGNMENT = 1.5           # Base: 1.0; Disperso: 0.5; Agresivo: 0.8; Cauteloso: 1.0
-K_FRONTIER_ATTRACTION = 100 # Base: 1.0; Disperso: 2.0; Agresivo: 3.0; Cauteloso: 0.5
-SENSOR_RANGE_DRONE = 500.0  # Base: 150; Disperso: 200; Agresivo: 120; Cauteloso: 100; RangoCorto: 50; RangoLargo: 300
+K_COHESION = 1.5            # Base: 1.0; Disperso: 0.2; Agresivo: 0.8; Cauteloso: 1.0
+K_SEPARATION = 800.0        # Base: 1000; Disperso: 2000; Agresivo: 1200; Cauteloso: 800
+K_ALIGNMENT = 2.0          # Base: 1.0; Disperso: 0.5; Agresivo: 0.8; Cauteloso: 1.0
+K_FRONTIER_ATTRACTION = 4 # Base: 1.0; Disperso: 2.0; Agresivo: 3.0; Cauteloso: 0.5
+SENSOR_RANGE_DRONE = 250.0  # Base: 150; Disperso: 200; Agresivo: 120; Cauteloso: 100; RangoCorto: 50; RangoLargo: 300
 MAX_VELOCIDAD = 300.0       # Base: 300; Disperso: 350; Agresivo: 400; Cauteloso: 100
-MAX_FUERZA = 150.0          # Base: 150; Disperso: 150; Agresivo: 200; Cauteloso: 50
+MAX_FUERZA = 500.0          # Base: 150; Disperso: 150; Agresivo: 200; Cauteloso: 50
 
 # Obstáculos
 NUM_OBSTACULOS = 5          # Base: 5; Agresivo: 15
 K_OBSTACLE_REPULSION = 1500.0 # Base: 1000; Agresivo: 1500
-OBSTACULOS_DINAMICOS_PORCENTAJE = 0.7 # Base: 0.2; Agresivo: 0.7
+OBSTACULOS_DINAMICOS_PORCENTAJE = 1 # Base: 0.2; Agresivo: 0.7
 GENERAR_NUEVOS_OBSTACULOS_INTERVALO = 30.0 # Base: 30; Agresivo: 10
 
 # Control Barrier Functions (CBF)
@@ -115,13 +113,4 @@ CBF_D_MIN_DRON_DRON = 25.0  # Cauteloso: 35.0 (Base y otros: 25.0)
 CBF_FACTOR_CORRECCION_VELOCIDAD = 0.2 # Cauteloso: 0.05 (Base y otros: 0.1)
 
 # Cobertura
-TAMANO_CELDA_COBERTURA = 50 # Agresivo: 20 (Base y otros: 25)
-
-# ==============================================================================
-# --- RECALCULO DE DELTA_T ---
-# Asegurarse que DELTA_T siempre refleje FPS si FPS es editable.
-# Si FPS es editable, es mejor calcular DELTA_T en el motor de simulación
-# al inicio, basado en el config cargado. Si FPS se fija, esto es redundante.
-# Por seguridad, mantenemos el cálculo aquí.
-DELTA_T = 1 / FPS if FPS > 0 else 0.016667
-# ==============================================================================
+TAMANO_CELDA_COBERTURA = 35 # Agresivo: 20 (Base y otros: 25)

@@ -207,7 +207,7 @@ class SimulationEngine:
                 # CBF Dron-Obstáculo
                 for obs in obsts_active: # Usar la lista ya filtrada de obstáculos activos
                     # d_min para CBF con obstáculos debe ser la distancia centro-a-centro segura
-                    dist_min_cbf_obs = self.config.RADIO_DRONE + obs.radio + self.config.CBF_D_MIN_DRON_OBSTACULO
+                    dist_min_cbf_obs = self.config.CBF_D_MIN_DRON_OBSTACULO
                     aplicar_cbf_simplificada(
                         d1, obs, dist_min_cbf_obs, True, # es_obstaculo = True
                         self.config

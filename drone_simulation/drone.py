@@ -14,18 +14,7 @@ class Drone:
     _id_counter = -1 # Contador de clase para asignar IDs únicos a los drones
 
     def __init__(self, x, y, radio_param, color, config_obj, id_drone=None):
-        """
-        Constructor de la clase Drone.
-
-        Args:
-            x (float): Posición inicial en el eje x.
-            y (float): Posición inicial en el eje y.
-            radio_param (float): Radio del dron, normalmente obtenido de config_obj.
-            color (tuple): Color RGB para la visualización del dron.
-            config_obj (SimpleNamespace): Objeto que contiene todos los parámetros de configuración
-                                       de la simulación (ej. MASA_DRONE, K_COHESION, etc.).
-            id_drone (int, optional): ID específico para el dron. Si es None, se autogenera.
-        """
+        
         Drone._id_counter +=1
         self.id = id_drone if id_drone is not None else Drone._id_counter
         
@@ -115,10 +104,8 @@ class Drone:
         
         # Asegurar que el punto frontera elegido no esté demasiado pegado a los bordes físicos del mapa
         if mejor_punto is not None:
-            safety_margin_border = self.radio * 2 
-            mejor_punto[0] = np.clip(mejor_punto[0], safety_margin_border, self.config_propia.ANCHO_PANTALLA - safety_margin_border)
-            mejor_punto[1] = np.clip(mejor_punto[1], safety_margin_border, self.config_propia.ALTO_PANTALLA - safety_margin_border)
-            
+            return None
+
         return mejor_punto
 
     def calcular_fuerzas(self, otros_drones, obstaculos, grilla_cobertura, tamano_celda, num_cx, num_cy, rng_decision_dron):
@@ -143,7 +130,7 @@ class Drone:
             dist_frontera = np.linalg.norm(vec_hacia_frontera)
             if dist_frontera > 0: # Evitar división por cero
                 # Magnitud de la fuerza, el '25' es un factor de escala empírico
-                magnitud_fuerza_frontera_escalada = self.config_propia.K_FRONTIER_ATTRACTION * 25 
+                magnitud_fuerza_frontera_escalada = self.config_propia.K_FRONTIER_ATTRACTION
                 fuerza_frontera = (vec_hacia_frontera / dist_frontera) * magnitud_fuerza_frontera_escalada # Fuerza = K_o * dir_frontera
                 fuerza_total += fuerza_frontera
         
@@ -174,11 +161,10 @@ class Drone:
                 # Calcular Separación si está demasiado cerca
                 # F_rep = -K_r * (r_j - r_i) / (||r_j - r_i||^2 + epsilon)
                 # El signo negativo y (r_j - r_i) resulta en una fuerza en dirección (r_i - r_j)
-                if distancia < self.config_propia.DISTANCIA_SEPARACION_MIN:
+                if distancia > 0:
                     # Fuerza repulsiva, inversamente proporcional al cuadrado de la distancia (o similar)
                     # El vector -(r_j - r_i) = (r_i - r_j) apunta desde el otro dron hacia el dron actual
-                    fuerza_separacion_individual = -1.0 * dist_vector * (1.0 / (distancia**2 + self.config_propia.EPSILON_FUERZA))
-                    fuerza_separacion_acumulada += fuerza_separacion_individual
+                    fuerza_separacion_acumulada += (-1.0 * dist_vector / (distancia**2 + self.config_propia.EPSILON_FUERZA))
         
         if vecinos_visibles_contador > 0:
             # Cohesión: Moverse hacia el centroide promedio de los vecinos.

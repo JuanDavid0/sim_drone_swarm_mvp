@@ -397,9 +397,6 @@ class Simulation:
                 elif evento.key == self.config_actual.TECLA_QUITAR_DRON:
                     self._quitar_dron()
 
-                elif evento.key == self.config_actual.TECLA_EJECUTAR_RNG_TESTS:
-                    self.ejecutar_y_mostrar_pruebas_rng_consola()
-
                             
     def dibujar_elementos_pygame(self, pantalla_pygame, font_pygame_metrics, font_pygame_params):
         pantalla_pygame.fill(self.config_actual.GRIS_CLARO)
@@ -464,40 +461,3 @@ class Simulation:
             self.dibujar_elementos_pygame(self.pantalla, self.font_metrics, self.font_params) # Pasar fuentes
             self.reloj.tick(self.config_actual.FPS)
         pygame.quit()
-        
-    
-
-    def ejecutar_y_mostrar_pruebas_rng_consola(self): # Usa self.config_actual
-        # from .rng_validator import perform_rng_quality_tests_from_scratch # Ya está importado arriba
-        print("\n--- Ejecutando Pruebas de Calidad RNG (Desde Cero - Consola) ---")
-        rngs_para_probar = [
-            ("GCL_ENTORNO", self.rng_entorno, 
-             {'a': self.config_actual.GCL_MULTIPLIER_A, 'c': self.config_actual.GCL_INCREMENT_C, 'm': self.config_actual.GCL_MODULUS_M}),
-            ("MIDDLE_SQUARE_DRONES", self.rng_drones_decisiones, {'digits': self.config_actual.N_DIGITS_MIDDLE_SQUARE}),
-            ("GCL_OBSTACULOS_DINAMICOS", self.rng_obstaculos_dinamicos,
-             {'a': self.config_actual.GCL_MULTIPLIER_A_OBS, 'c': self.config_actual.GCL_INCREMENT_C_OBS, 'm': self.config_actual.GCL_MODULUS_M_OBS})
-        ]
-        for nombre, instancia_sim, params_rng in rngs_para_probar:
-            print(f"\n--- Pruebas para {nombre} (Semilla Inicial de Sim: {instancia_sim.initial_seed}) ---")
-            instancia_test = None
-            if isinstance(instancia_sim, LCG):
-                instancia_test = LCG(seed=instancia_sim.initial_seed, multiplier=params_rng['a'], increment=params_rng['c'], modulus=params_rng['m'])
-            elif isinstance(instancia_sim, MiddleSquareRNG):
-                instancia_test = MiddleSquareRNG(seed=instancia_sim.initial_seed, num_digits=params_rng['digits'])
-            else: continue
-            
-            resultados = perform_rng_quality_tests_from_scratch(instancia_test, self.config_actual.RNG_TEST_NUM_SAMPLES)
-            
-            for test_name_key, result_data in resultados.items():
-                if test_name_key in ['rng_type', 'initial_seed_for_test_sequence', 'num_samples_tested']:
-                    print(f"  {test_name_key.replace('_', ' ').title()}: {result_data}")
-                    continue
-                print(f"  Test: {result_data.get('test_name', test_name_key)}")
-                if isinstance(result_data, dict):
-                    if 'error' in result_data: print(f"    Error: {result_data['error']}")
-                    else:
-                        for k, v in result_data.items():
-                            if k == 'test_name': continue
-                            print(f"    {k.replace('_', ' ').title()}: {v:.4f}" if isinstance(v, float) else f"    {k.replace('_', ' ').title()}: {v}")
-                else: print(f"    {result_data}")
-        print("-----------------------------------------------------\n")

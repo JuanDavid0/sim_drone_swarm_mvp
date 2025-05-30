@@ -57,7 +57,13 @@ class Obstaculo:
             self.tiempo_respawn_configurado = self.contador_tiempo_estado
         elif not self.esta_activo and self.contador_tiempo_estado <= 0:
             self.esta_activo = True
-            self.posicion = self.posicion_original
+            
+            margin = self.config_propia.MAX_TAMANO_OBSTACULO + 20 
+            new_x = rng_usar.next_float() * (self.config_propia.ANCHO_PANTALLA - 2 * margin) + margin
+            new_y = rng_usar.next_float() * (self.config_propia.ALTO_PANTALLA - 2 * margin) + margin
+            self.posicion = np.array([new_x, new_y])
+            self.posicion_original = self.posicion.copy() 
+
             self.radio = rng_usar.next_float() * \
                          (self.config_propia.MAX_TAMANO_OBSTACULO - self.config_propia.MIN_TAMANO_OBSTACULO) + self.config_propia.MIN_TAMANO_OBSTACULO
             self.contador_tiempo_estado = rng_usar.next_float() * \
