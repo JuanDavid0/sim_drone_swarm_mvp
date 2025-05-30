@@ -7,7 +7,7 @@ cbf_activation_count = 0
 def reset_cbf_activation_count(): global cbf_activation_count; cbf_activation_count = 0
 def get_cbf_activation_count(): global cbf_activation_count; return cbf_activation_count
 
-def aplicar_cbf_simplificada(dron_actual, entidad_proxima, d_min, es_obstaculo, config_obj): # <--- AÑADIR config_obj
+def aplicar_cbf_simplificada(dron_actual, entidad_proxima, d_min, es_obstaculo, config_obj):
     global cbf_activation_count
     if not dron_actual.esta_activo or (not es_obstaculo and not entidad_proxima.esta_activo): return False
 
@@ -24,7 +24,7 @@ def aplicar_cbf_simplificada(dron_actual, entidad_proxima, d_min, es_obstaculo, 
         cbf_activation_count += 1
         if dist > 0: n_ij = p_diff / dist
         else:
-            # Fallback si la distancia es cero (superposición exacta)
+            # Fallback si la distancia es cero
             temp_rng_for_cbf_fallback = random # Usar random global como fallback aquí
             n_ij = np.array([temp_rng_for_cbf_fallback.uniform(-1,1), temp_rng_for_cbf_fallback.uniform(-1,1)])
             norm_n_ij = np.linalg.norm(n_ij)

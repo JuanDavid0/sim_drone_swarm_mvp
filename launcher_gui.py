@@ -41,6 +41,11 @@ def cargar_config_y_descripciones_editables():
          "Cobertura": [
             ("TAMANO_CELDA_COBERTURA", int, "Tamaño de celda para mapa de cobertura (px)"),
         ],
+        "Configuración RNG (Semillas)": [ # Nueva categoría para las semillas
+            ("GCL_SEED_ENTORNO", str, "Semilla LCG Entorno (vacío o 'None' para aleatorio)"),
+            ("MIDDLE_SQUARE_SEED_DRONES", str, "Semilla Middle Sq. Drones (vacío o 'None' para aleatorio)"),
+            ("GCL_SEED_OBSTACULOS_DYN", str, "Semilla LCG Obst. Dinámicos (vacío o 'None' para aleatorio)"),
+        ]
     }
 
 class ConfigLauncher(QWidget):
@@ -75,25 +80,35 @@ class ConfigLauncher(QWidget):
                 if typ is int:
                     w = QSpinBox()
                     w.setMaximum(1_000_000)
-                    w.setValue(int(val))
+                    w.setValue(int(val) if val is not None else 0)
                 elif typ is float:
                     w = QDoubleSpinBox()
-                    w.setDecimals(2)
-                    w.setSingleStep(0.1)
-                    w.setMaximum(1_000_000)
-                    w.setValue(float(val))
-                elif typ is bool: # Usar QCheckBox para booleanos
+                    w.setDecimals(2) 
+                    w.setSingleStep(0.01)
+                    w.setMaximum(1_000_000.0)
+                    w.setMinimum(-1_000_000.0)
+                    w.setValue(float(val) if val is not None else 0.0)
+                elif typ is bool:
                     w = QCheckBox()
-                    w.setChecked(bool(val))
-                else: # str (aunque no hayamos definido strings editables)
-                    w = QLineEdit(str(val))
-
+                    w.setChecked(bool(val) if val is not None else False)
+                elif typ is str: # Para las semillas
+                    w = QLineEdit()
+                    w.setText(str(val) if val is not None else "")
+                    if "SEED" in key.upper():
+                        w.setPlaceholderText("Número o vacío/None")
+                        
                 w.setToolTip(desc)
-                form.addRow(f"{key}:", w)
-                lbl = QLabel(desc)
-                lbl.setStyleSheet("color: gray; font-size: 9pt")
-                form.addRow("", lbl)
-                self.campos[key] = w
+                # Asegurarse que 'w' se haya asignado antes de usarlo
+                if w: # Solo añadir si el widget fue creado
+                    form.addRow(f"{key}:", w)
+                    lbl = QLabel(desc)
+                    lbl.setStyleSheet("color: gray; font-size: 9pt")
+                    if not isinstance(w, QCheckBox):
+                        form.addRow("", lbl)
+                    self.campos[key] = w
+                else:
+                    print(f"Error: No se pudo crear el widget para la clave '{key}' con tipo '{typ}'.")
+
             vbox.addWidget(gb)
 
         container.setLayout(vbox)

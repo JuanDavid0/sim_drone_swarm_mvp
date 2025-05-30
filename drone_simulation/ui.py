@@ -1,7 +1,6 @@
 # drone_simulation/ui.py
 import pygame
 from .engine import SimulationEngine
-from .reporter import Reporter
 import os, subprocess, sys
 
 class SimulationUI:
@@ -18,7 +17,6 @@ class SimulationUI:
 
         # Motor de simulación y reporter
         self.engine = SimulationEngine(config, rngs)
-        self.reporter = Reporter(config, rngs)
 
         # Fuentes para métricas y mensajes
         self.font_metrics = pygame.font.SysFont(None, 22)
@@ -52,7 +50,6 @@ class SimulationUI:
 
                     elif event.key == self.config.TECLA_RESETEAR:
                         self.engine._init_state()
-                        # self.reporter.export_pdf() # Considera si quieres exportar en reset
 
                     elif event.key == self.config.TECLA_ANADIR_DRON:
                         self.engine._spawn_drones(1)

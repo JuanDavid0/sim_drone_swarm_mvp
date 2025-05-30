@@ -56,48 +56,69 @@ class RNGDashboard(QMainWindow):
 
     def setup_generadores(self):
         conf = self.config_data
-        # Usar valores por defecto si no están en la configuración o son inválidos
+
+        # Función auxiliar para obtener y convertir parámetros de forma segura
+        def get_rng_param(config_dict, key, default_value, param_type=int, is_seed_param=False):
+            val_from_conf = config_dict.get(key) # Obtener valor, puede ser None si la clave existe con valor None
+
+            if val_from_conf is None: # Si el valor es None (desde JSON null o clave no existente y no se usó default en .get())
+                if is_seed_param:
+                    return None # Para las semillas, None es válido (indica aleatoriedad para LCG/MiddleSquare)
+                else:
+                    # Para parámetros no-semilla (multiplicador, etc.), si es None, usar el default_value duro.
+                    print(f"Advertencia: Parámetro RNG '{key}' es None en config. Usando default: {default_value}.")
+                    return default_value
+            
+            # Si el valor no es None, intentar convertirlo
+            try:
+                if param_type == int:
+                    return int(val_from_conf)
+                elif param_type == float: # Aunque no usas float para RNG params ahora
+                    return float(val_from_conf)
+                return val_from_conf # Devolver tal cual si el tipo no es especificado
+            except (ValueError, TypeError):
+                print(f"Advertencia: Valor '{val_from_conf}' para parámetro RNG '{key}' no es un {param_type.__name__} válido. Usando default: {default_value}.")
+                if is_seed_param: # Si es una semilla y la conversión falló, que sea aleatoria
+                    return None
+                return default_value
+
         try:
-            gcl_seed_entorno = int(conf.get("GCL_SEED_ENTORNO"))
-            gcl_multiplier_a = int(conf.get("GCL_MULTIPLIER_A"))
-            gcl_increment_c = int(conf.get("GCL_INCREMENT_C"))
-            gcl_modulus_m = int(conf.get("GCL_MODULUS_M"))
+            # Obtener parámetros para LCG - Entorno
+            gcl_seed_entorno = get_rng_param(conf, "GCL_SEED_ENTORNO", None, int, is_seed_param=True)
+            gcl_multiplier_a = get_rng_param(conf, "GCL_MULTIPLIER_A", 1664525, int)
+            gcl_increment_c = get_rng_param(conf, "GCL_INCREMENT_C", 1013904223, int)
+            gcl_modulus_m = get_rng_param(conf, "GCL_MODULUS_M", 2**32, int)
 
-            ms_seed_drones = int(conf.get("MIDDLE_SQUARE_SEED_DRONES"))
-            ms_n_digits = int(conf.get("N_DIGITS_MIDDLE_SQUARE"))
+            # Obtener parámetros para Middle Square - Drones
+            ms_seed_drones = get_rng_param(conf, "MIDDLE_SQUARE_SEED_DRONES", None, int, is_seed_param=True)
+            ms_n_digits = get_rng_param(conf, "N_DIGITS_MIDDLE_SQUARE", 4, int)
 
-            gcl_seed_obst = int(conf.get("GCL_SEED_OBSTACULOS_DYN"))
-            gcl_mult_a_obs = int(conf.get("GCL_MULTIPLIER_A_OBS"))
-            gcl_inc_c_obs = int(conf.get("GCL_INCREMENT_C_OBS"))
-            gcl_mod_m_obs = int(conf.get("GCL_MODULUS_M_OBS"))
+            # Obtener parámetros para LCG - Obstáculos
+            gcl_seed_obst = get_rng_param(conf, "GCL_SEED_OBSTACULOS_DYN", None, int, is_seed_param=True)
+            gcl_mult_a_obs = get_rng_param(conf, "GCL_MULTIPLIER_A_OBS", 1103515245, int)
+            gcl_inc_c_obs = get_rng_param(conf, "GCL_INCREMENT_C_OBS", 12345, int)
+            gcl_mod_m_obs = get_rng_param(conf, "GCL_MODULUS_M_OBS", 2**31, int)
 
-        except (ValueError, TypeError) as e:
-            print(f"Error al convertir parámetros de RNG desde config: {e}. Usando defaults estrictos.")
-            gcl_seed_entorno = 12345
-            gcl_multiplier_a = 1664525
-            gcl_increment_c = 1013904223
-            gcl_modulus_m = 2**32
-            ms_seed_drones = 1234
-            ms_n_digits = 4
-            gcl_seed_obst = 54321
-            gcl_mult_a_obs = 1103515245
-            gcl_inc_c_obs = 12345
-            gcl_mod_m_obs = 2**31
-
+        except Exception as e: # Captura errores más generales durante el parseo
+            print(f"Error crítico al procesar parámetros de RNG desde la configuración: {e}. Usando todos los defaults estrictos para RNGs.")
+            # Fallback a defaults duros si algo sale muy mal en el bloque try
+            gcl_seed_entorno = None; gcl_multiplier_a = 1664525; gcl_increment_c = 1013904223; gcl_modulus_m = 2**32
+            ms_seed_drones = None; ms_n_digits = 4
+            gcl_seed_obst = None; gcl_mult_a_obs = 1103515245; gcl_inc_c_obs = 12345; gcl_mod_m_obs = 2**31
 
         self.generadores = {
             "LCG - Entorno": lambda: LCG(
-                seed=gcl_seed_entorno,
+                seed=gcl_seed_entorno, # Puede ser None
                 multiplier=gcl_multiplier_a,
                 increment=gcl_increment_c,
                 modulus=gcl_modulus_m
             ),
             "Middle Square - Drones": lambda: MiddleSquareRNG(
-                seed=ms_seed_drones,
+                seed=ms_seed_drones, # Puede ser None
                 num_digits=ms_n_digits
             ),
             "LCG - Obstáculos": lambda: LCG(
-                seed=gcl_seed_obst,
+                seed=gcl_seed_obst, # Puede ser None
                 multiplier=gcl_mult_a_obs,
                 increment=gcl_inc_c_obs,
                 modulus=gcl_mod_m_obs

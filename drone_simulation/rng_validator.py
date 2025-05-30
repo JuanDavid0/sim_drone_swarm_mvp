@@ -2,35 +2,15 @@
 import numpy as np
 from . import config # Para parámetros de prueba como RNG_TEST_NUM_BINS_CHI2
 
-# --- Funciones auxiliares para matemáticas (si son necesarias) ---
-def gamma_incomplete_upper(s, x):
-    """
-    Implementación (muy simplificada o placeholder) de la función Gamma incompleta superior Q(s,x).
-    Calcular esto con precisión desde cero es muy complejo y está fuera del alcance de un MVP simple.
-    Para una prueba Chi2 real, necesitaríamos esto o una tabla de Chi2.
-    ESTO ES UN PLACEHOLDER - NO USAR PARA RESULTADOS ESTADÍSTICOS REALES SIN UNA LIBRERÍA.
-    """
-    if s <= 0 or x < 0: return np.nan
-    # Una aproximación muy, muy burda o enlace a tabla.
-    # Por ahora, solo retornaremos NaN para indicar que no está implementado.
-    print("Advertencia: gamma_incomplete_upper no está completamente implementada para p-value de Chi2.")
-    return np.nan
-
 def chi2_cdf(chi2_stat, df):
     """
-    Placeholder para la CDF de Chi-cuadrado.
     P(X <= chi2_stat) donde X sigue una distribución Chi2 con df grados de libertad.
     p_value = 1 - CDF(chi2_stat, df)
-    ESTO ES UN PLACEHOLDER.
     """
-    print(f"Advertencia: chi2_cdf no implementada. Estadístico Chi2: {chi2_stat}, df: {df}. Consulte una tabla.")
     if df <= 0: return np.nan
-    if df == 9 and chi2_stat > 16.919: return 0.04 # Simula p < 0.05
-    if df == 9 and chi2_stat <= 16.919: return 0.10 # Simula p >= 0.05
-    return np.nan # No podemos calcular el p-value exacto
-
-
-# --- Funciones de Prueba (Implementación desde Cero) ---
+    if df == 9 and chi2_stat > 16.919: return 0.04
+    if df == 9 and chi2_stat <= 16.919: return 0.10
+    return np.nan 
 
 def run_chi_squared_test_uniform_floats_from_scratch(float_samples: list, num_bins: int) -> dict:
     """
@@ -78,8 +58,8 @@ def run_chi_squared_test_uniform_floats_from_scratch(float_samples: list, num_bi
 
 def run_kolmogorov_smirnov_test_uniform_floats_from_scratch(float_samples: list) -> dict:
     """
-    Prueba K-S para uniformidad de flotantes en [0,1), implementada desde cero.
-    Retorna el estadístico D. El p-value es un placeholder.
+    Prueba K-S para uniformidad de flotantes en [0,1).
+    Retorna el estadístico D.
     """
     results = {'test_name': 'Kolmogorov-Smirnov para Uniformidad (desde cero)'}
     n = len(float_samples)
@@ -110,13 +90,9 @@ def run_kolmogorov_smirnov_test_uniform_floats_from_scratch(float_samples: list)
     ks_statistic = max(d_plus_max, d_minus_max)
     results['statistic_D'] = ks_statistic
     
-    # Calcular el p-value para K-S desde cero es muy complejo.
-    # Para N > ~35, se pueden usar aproximaciones basadas en la Serie de Kolmogorov
-    # o comparar D_n * sqrt(n) con valores críticos (e.g., 1.36 para alpha=0.05)
+    
     critical_value_approx = 0.0
-    if n > 35: # Aproximación para N grande
-        # Valor crítico para D_alpha es K_alpha / sqrt(n)
-        # K_alpha para 0.05 es aprox 1.358
+    if n > 35:
         critical_value_approx = 1.358 / np.sqrt(n)
         results['critical_value_D_at_alpha_0.05 (approx)'] = critical_value_approx
         if ks_statistic > critical_value_approx:

@@ -6,11 +6,6 @@ import random # Usado para velocidad inicial por defecto si Simulation no la pro
 # Ya no se importa el config global aquí, se recibe en __init__
 
 class Drone:
-    """
-    Representa un agente dron individual en la simulación.
-    Cada dron tiene su propio estado (posición, velocidad, etc.) y calcula
-    las fuerzas que actúan sobre él para determinar su movimiento y comportamiento.
-    """
     _id_counter = -1 # Contador de clase para asignar IDs únicos a los drones
 
     def __init__(self, x, y, radio_param, color, config_obj, id_drone=None):
@@ -18,45 +13,29 @@ class Drone:
         Drone._id_counter +=1
         self.id = id_drone if id_drone is not None else Drone._id_counter
         
-        self.config_propia = config_obj # Almacena la referencia al objeto de configuración actual
+        self.config_propia = config_obj
         
         self.posicion = np.array([float(x), float(y)]) # Vector de posición [x, y]
         self.velocidad = np.array([0.0, 0.0], dtype=float) # Vector de velocidad [vx, vy], Simulation asignará la inicial
         self.aceleracion = np.array([0.0, 0.0]) # Vector de aceleración [ax, ay]
         self.fuerza_actual = np.array([0.0,0.0]) # Fuerza neta actual que actúa sobre el dron
         
-        self.radio = radio_param # Radio visual y para detección de colisiones
-        self.color_original = color # Color cuando está activo
-        self.color = color          # Color actual (puede cambiar si está inactivo)
+        self.radio = radio_param
+        self.color_original = color 
+        self.color = color         
 
-        # Parámetros físicos y de comportamiento leídos desde el objeto de configuración propio.
-        # Estos valores pueden ser modificados por el usuario a través de la UI de Pygame
-        # y se reflejarán aquí porque config_propia apunta a self.config_actual de Simulation.
         self.masa = self.config_propia.MASA_DRONE
         self.max_velocidad = self.config_propia.MAX_VELOCIDAD
         self.max_fuerza = self.config_propia.MAX_FUERZA
-        self.sensor_range = self.config_propia.SENSOR_RANGE_DRONE # Rango para detectar otros drones
-        self.radio_busqueda_frontera = self.config_propia.RADIO_BUSQUEDA_FRONTERA_DRONE # Rango para buscar celdas no cubiertas
+        self.sensor_range = self.config_propia.SENSOR_RANGE_DRONE 
+        self.radio_busqueda_frontera = self.config_propia.RADIO_BUSQUEDA_FRONTERA_DRONE
         
-        self.esta_activo = True # Estado del dron (activo o inactivo por fallo/colisión)
+        self.esta_activo = True
 
     def _encontrar_punto_frontera(self, grilla_cobertura, tamano_celda, num_celdas_x, num_celdas_y, rng_decision):
         """
-        Lógica para que el dron identifique un "punto frontera" hacia el cual moverse para explorar.
-        Busca la celda no cubierta más cercana dentro de su 'radio_busqueda_frontera'.
         Si no encuentra ninguna, elige un punto aleatorio en el mapa.
         Este método implementa la lógica de atracción a la frontera K_o(r_frontier,i - r_i) 
-       .
-
-        Args:
-            grilla_cobertura (np.array): La matriz que representa las celdas cubiertas.
-            tamano_celda (float): El tamaño en píxeles de cada celda de la grilla.
-            num_celdas_x (int): Número de celdas en el eje x.
-            num_celdas_y (int): Número de celdas en el eje y.
-            rng_decision (RNG object): Instancia del generador de números aleatorios para decisiones.
-
-        Returns:
-            np.array or None: Las coordenadas del punto frontera, o None si el dron está inactivo.
         """
         if not self.esta_activo: # Los drones inactivos no exploran
             return None
@@ -104,7 +83,9 @@ class Drone:
         
         # Asegurar que el punto frontera elegido no esté demasiado pegado a los bordes físicos del mapa
         if mejor_punto is not None:
-            return None
+            safety_margin_border = self.radio * 2 
+            mejor_punto[0] = np.clip(mejor_punto[0], safety_margin_border, self.config_propia.ANCHO_PANTALLA - safety_margin_border)
+            mejor_punto[1] = np.clip(mejor_punto[1], safety_margin_border, self.config_propia.ALTO_PANTALLA - safety_margin_border)
 
         return mejor_punto
 
@@ -129,32 +110,31 @@ class Drone:
             vec_hacia_frontera = punto_frontera - self.posicion # Vector (r_frontier,i - r_i)
             dist_frontera = np.linalg.norm(vec_hacia_frontera)
             if dist_frontera > 0: # Evitar división por cero
-                # Magnitud de la fuerza, el '25' es un factor de escala empírico
                 magnitud_fuerza_frontera_escalada = self.config_propia.K_FRONTIER_ATTRACTION
                 fuerza_frontera = (vec_hacia_frontera / dist_frontera) * magnitud_fuerza_frontera_escalada # Fuerza = K_o * dir_frontera
                 fuerza_total += fuerza_frontera
         
-        # --- 2, 3, 4. Interacciones con otros Drones (Cohesión, Alineación, Separación) ---
+        # Interacciones con otros Drones (Cohesión, Alineación, Separación) ---
         # Estas fuerzas modelan el comportamiento de enjambre (flocking).
         fuerza_cohesion_acumulada = np.array([0.0, 0.0])
         fuerza_separacion_acumulada = np.array([0.0, 0.0])
         fuerza_alineacion_acumulada = np.array([0.0, 0.0])
         vecinos_visibles_contador = 0
 
-        for otro_dron in otros_drones: # 'otros_drones' ya excluye a self
-            if not otro_dron.esta_activo: # No interactuar con drones inactivos
+        for otro_dron in otros_drones:
+            if not otro_dron.esta_activo: 
                 continue
             
             dist_vector = otro_dron.posicion - self.posicion # Vector (r_j - r_i)
             distancia = np.linalg.norm(dist_vector)
 
             # Considerar solo drones dentro del rango del sensor
-            if 0 < distancia < self.sensor_range: # self.sensor_range es de config_propia
+            if 0 < distancia < self.sensor_range:
                 vecinos_visibles_contador += 1
                 
                 # Acumular para Cohesión: vector hacia el otro dron (r_j - r_i)
                 fuerza_cohesion_acumulada += dist_vector
-                
+    
                 # Acumular para Alineación: velocidad del otro dron (v_j)
                 fuerza_alineacion_acumulada += otro_dron.velocidad
                 
@@ -274,8 +254,6 @@ class Drone:
             if rng_decision.next_float() < prob_fallo:
                 decision_fallo = True
         else: 
-            # Fallback al RNG global de Python si no se pasa uno (menos controlable)
-            # Esto no debería ocurrir si Simulation siempre pasa rng_drones_decisiones.
             if hasattr(cfg_usar, 'VERBOSE') and cfg_usar.VERBOSE:
                 print("Advertencia: RNG no proporcionado a manejar_colision, usando random.random() global.")
             if random.random() < prob_fallo:

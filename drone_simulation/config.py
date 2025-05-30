@@ -1,10 +1,10 @@
 import pygame
 
 # Dimensiones de la pantalla de Pygame
-ANCHO_PANTALLA = 500
-ALTO_PANTALLA = 500
+ANCHO_PANTALLA = 800
+ALTO_PANTALLA = 650
 
-# Colores (formato RGB) - Se mantienen los que tenías
+# Colores (formato RGB) 
 BLANCO = (219, 31, 0, 86)
 NEGRO = (0, 0, 0, 86)
 ROJO = (92, 52, 46, 86)
@@ -12,15 +12,13 @@ VERDE = (92, 46, 79, 86)
 AZUL = (44, 217, 219, 86)
 GRIS_CLARO = (89, 92, 77, 86)
 
-# ==============================================================================
+# ============================
 # --- VARIABLES "ESTABLES" ---
-# Estas variables tendrán valores fijos para simplificar la experimentación.
-# Se cargarán desde aquí si no se especifican o editan en la GUI/JSON.
-# ==============================================================================
+# ============================
 
 # Drones Físicos
 RADIO_DRONE = 10.0
-MASA_DRONE = 10.0 # Valor estable sugerido (el 2.0 que tenías era muy bajo)
+MASA_DRONE = 2.0 
 
 # Fuerzas Internas
 DISTANCIA_SEPARACION_MIN = RADIO_DRONE * 2.5  # 25.0
@@ -32,29 +30,29 @@ MAX_TAMANO_OBSTACULO = 20.0
 RADIO_OBSTACULO = MAX_TAMANO_OBSTACULO / 2.0
 DISTANCIA_REACCION_OBSTACULO = RADIO_DRONE + MAX_TAMANO_OBSTACULO
 
-# Obstáculos Dinámicos (Fijos)
+# Obstáculos Dinámicos
 TIEMPO_VIDA_OBSTACULO_MIN = 10.0
 TIEMPO_VIDA_OBSTACULO_MAX = 20.0
 TIEMPO_RESPAWN_OBSTACULO_MIN = 5.0
 TIEMPO_RESPAWN_OBSTACULO_MAX = 15.0
-MAX_OBSTACULOS_SIMULTANEOS = 10 # Se puede ajustar K_OBSTACLE_REPULSION si son muchos
+MAX_OBSTACULOS_SIMULTANEOS = 5 
 
 # Exploración Fija
 RADIO_BUSQUEDA_FRONTERA_DRONE = 400.0
 
 # Colisiones Fijas
-PROBABILIDAD_FALLO_POR_COLISION_OBSTACULO = 0.9 # Reducido para observar más el movimiento
-PROBABILIDAD_FALLO_POR_COLISION_DRON = 0.9 # Reducido
+PROBABILIDAD_FALLO_POR_COLISION_OBSTACULO = 0.9
+PROBABILIDAD_FALLO_POR_COLISION_DRON = 0.9
 DISTANCIA_COLISION_DRON_DRON = 2
-DISTANCIA_COLISION_DRON_OBSTACULO = 2 # Aumentado para evitar colisiones frecuentes
+DISTANCIA_COLISION_DRON_OBSTACULO = 2
 
 # Bordes Fijos
 K_BORDE_REPULSION = 2000.0
-DISTANCIA_REACCION_BORDE = RADIO_DRONE * 2.5  # Aumentado para evitar colisiones frecuentes con los bordes
+DISTANCIA_REACCION_BORDE = RADIO_DRONE * 2.5  
 
 # CBF Fijos
 CBF_D_MIN_DRON_OBSTACULO = RADIO_DRONE + RADIO_OBSTACULO
-CBF_GAMMA = 0.5 
+CBF_GAMMA = 1  
 
 # RNG Fijos (Mantén tus semillas para reproducibilidad)
 GCL_SEED_ENTORNO = 946548256
@@ -62,7 +60,7 @@ GCL_MULTIPLIER_A = 1664525
 GCL_INCREMENT_C = 1013904223
 GCL_MODULUS_M = 2**32
 MIDDLE_SQUARE_SEED_DRONES = 6453215
-N_DIGITS_MIDDLE_SQUARE = 4
+N_DIGITS_MIDDLE_SQUARE = 8
 GCL_SEED_OBSTACULOS_DYN = 7485316
 GCL_MULTIPLIER_A_OBS = 1103515245
 GCL_INCREMENT_C_OBS = 12345
@@ -83,34 +81,32 @@ VERBOSE = True
 
 # ==============================================================================
 # --- VARIABLES "EDITABLES" ---
-# Valores por defecto para el ESCENARIO 1: Masa Compacta.
-# Comentarios indican valores para otros escenarios.
 # ==============================================================================
 
 # Simulación General
-NUM_DRONES_INICIAL = 15     # Base: 15; Disperso: 10; Agresivo: 25; Cauteloso: 10
-FPS = 60.0                  # Mantener a 60 para DELTA_T = 1/60
-DELTA_T = 1 / FPS  # Intervalo de tiempo entre frames 
+NUM_DRONES_INICIAL = 15   
+FPS = 60.0 
+DELTA_T = 1 / FPS
 
 # Comportamiento del Enjambre
-K_COHESION = 1.5            # Base: 1.0; Disperso: 0.2; Agresivo: 0.8; Cauteloso: 1.0
-K_SEPARATION = 800.0        # Base: 1000; Disperso: 2000; Agresivo: 1200; Cauteloso: 800
-K_ALIGNMENT = 2.0          # Base: 1.0; Disperso: 0.5; Agresivo: 0.8; Cauteloso: 1.0
-K_FRONTIER_ATTRACTION = 4 # Base: 1.0; Disperso: 2.0; Agresivo: 3.0; Cauteloso: 0.5
-SENSOR_RANGE_DRONE = 250.0  # Base: 150; Disperso: 200; Agresivo: 120; Cauteloso: 100; RangoCorto: 50; RangoLargo: 300
-MAX_VELOCIDAD = 300.0       # Base: 300; Disperso: 350; Agresivo: 400; Cauteloso: 100
-MAX_FUERZA = 500.0          # Base: 150; Disperso: 150; Agresivo: 200; Cauteloso: 50
+K_COHESION = 1.0           
+K_SEPARATION = 1000.0    
+K_ALIGNMENT = 5           
+K_FRONTIER_ATTRACTION = 50 
+SENSOR_RANGE_DRONE = 250.0
+MAX_VELOCIDAD = 500       
+MAX_FUERZA = 5000.0
 
 # Obstáculos
-NUM_OBSTACULOS = 5          # Base: 5; Agresivo: 15
-K_OBSTACLE_REPULSION = 1500.0 # Base: 1000; Agresivo: 1500
-OBSTACULOS_DINAMICOS_PORCENTAJE = 1 # Base: 0.2; Agresivo: 0.7
-GENERAR_NUEVOS_OBSTACULOS_INTERVALO = 30.0 # Base: 30; Agresivo: 10
+NUM_OBSTACULOS = 5         
+K_OBSTACLE_REPULSION = 1500.0 
+OBSTACULOS_DINAMICOS_PORCENTAJE = 0.1 
+GENERAR_NUEVOS_OBSTACULOS_INTERVALO = 30.0 
 
 # Control Barrier Functions (CBF)
-CBF_ACTIVADO = True         # SinCBF: False
-CBF_D_MIN_DRON_DRON = 25.0  # Cauteloso: 35.0 (Base y otros: 25.0)
-CBF_FACTOR_CORRECCION_VELOCIDAD = 0.2 # Cauteloso: 0.05 (Base y otros: 0.1)
+CBF_ACTIVADO = True         
+CBF_D_MIN_DRON_DRON = 25.0
+CBF_FACTOR_CORRECCION_VELOCIDAD = 0.2
 
 # Cobertura
-TAMANO_CELDA_COBERTURA = 35 # Agresivo: 20 (Base y otros: 25)
+TAMANO_CELDA_COBERTURA = 50

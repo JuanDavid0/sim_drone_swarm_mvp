@@ -2,7 +2,7 @@
 import numpy as np
 from .drone import Drone
 from .obstaculo import Obstaculo
-from .cbf import aplicar_cbf_simplificada, reset_cbf_activation_count # Asumiendo que cbf.py también usa el config pasado
+from .cbf import aplicar_cbf_simplificada, reset_cbf_activation_count 
 
 class SimulationEngine:
     """
@@ -10,13 +10,7 @@ class SimulationEngine:
     los obstáculos, las interacciones y la progresión temporal.
     """
     def __init__(self, config, rngs):
-        """
-        Constructor de SimulationEngine.
-        Args:
-            config: Objeto de configuración con todos los parámetros de la simulación.
-            rngs: Una tupla o lista de instancias de generadores de números aleatorios
-                  (rng_entorno, rng_drones, rng_obstaculos).
-        """
+        
         self.config = config # Almacena la configuración editable/actual
         self.rng_entorno, self.rng_drones, self.rng_obst = rngs # Desempaqueta y almacena los RNGs
 
@@ -36,7 +30,6 @@ class SimulationEngine:
         self.obstaculos = [] # Lista para almacenar los objetos Obstaculo
 
         # Inicialización de la grilla de cobertura
-        # Las dimensiones de la grilla se calculan basadas en el tamaño de la pantalla y el tamaño de celda definidos en config.
         # Esto corresponde a la discretización del espacio para medir la cobertura.
         nx = self.config.ANCHO_PANTALLA // self.config.TAMANO_CELDA_COBERTURA
         ny = self.config.ALTO_PANTALLA  // self.config.TAMANO_CELDA_COBERTURA
