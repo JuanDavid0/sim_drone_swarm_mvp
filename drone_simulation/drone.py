@@ -202,7 +202,6 @@ class Drone:
         """
         Actualiza la posición y velocidad del dron con los nuevos valores calculados
         por el integrador. También aplica límites de velocidad y la lógica de rebote en bordes.
-        Esta es la aplicación de dr_i/dt = v_i, después de que v_i ha sido actualizada.
         """
         if not self.esta_activo: # Drones inactivos no se actualizan (excepto para ser empujados, no implementado)
             self.velocidad = np.array([0.0,0.0])

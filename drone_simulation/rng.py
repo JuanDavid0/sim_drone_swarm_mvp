@@ -79,7 +79,7 @@ class MiddleSquareRNG:
             if self.initial_seed is None: self.initial_seed = self.current_seed_int
         else:
             if not (0 <= seed <= self.max_seed_val and len(str(seed)) <= self.num_digits) :
-                 print(f"Advertencia: Semilla {seed} para MiddleSquareRNG fuera de rango para {num_digits} digitos. Se ajustará.")
+                 print(f"Advertencia: Semilla {seed} para MiddleSquareRNG fuera de rango para {self.num_digits} digitos. Se ajustará.")
                  self.current_seed_int = seed % (10**self.num_digits)
             else:
                 self.current_seed_int = seed

@@ -106,9 +106,6 @@ def run_kolmogorov_smirnov_test_uniform_floats_from_scratch(float_samples: list)
 
 
 def perform_rng_quality_tests_from_scratch(rng_instance_to_test, num_samples: int) -> dict:
-    """
-    Ejecuta pruebas de calidad implementadas desde cero.
-    """
     test_suite_results = {}
     
     # Asegurarnos de que generate_samples_from_rng_instance está definido o lo copiamos aquí
@@ -128,7 +125,6 @@ def perform_rng_quality_tests_from_scratch(rng_instance_to_test, num_samples: in
         float_samples
     )
     
-    # Autocorrelación (usa NumPy, lo cual está permitido para el análisis, no para generación)
     if len(float_samples) > 1:
         try:
             samples_np = np.array(float_samples)

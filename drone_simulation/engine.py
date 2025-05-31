@@ -77,7 +77,7 @@ class SimulationEngine:
             )
             # Asigna una velocidad inicial aleatoria usando el RNG de decisiones de drones
             dr.velocidad = np.array([
-                self.rng_drones.next_float() * 40 - 20, # Rango de velocidad [-20, 20]
+                self.rng_drones.next_float() * 40 - 20, 
                 self.rng_drones.next_float() * 40 - 20
             ], dtype=float)
             self.drones.append(dr)

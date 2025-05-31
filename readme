@@ -1,0 +1,54 @@
+# Simulación de Enjambre de Drones para Cobertura Territorial
+
+Este proyecto presenta un simulador 2D desarrollado en Python para modelar y analizar el comportamiento de un enjambre de drones autónomos. El objetivo principal de los drones es lograr la cobertura eficiente de un área designada, navegando en un entorno con obstáculos estáticos y dinámicos. La simulación incorpora dinámicas de interacción basadas en fuerzas artificiales (inspiradas en el modelo de Boids de Reynolds), integración numérica mediante el método de Runge-Kutta de cuarto orden (RK4), y mecanismos de seguridad como las Control Barrier Functions (CBF).
+
+## Requisitos
+
+* Python 3.8+
+* Bibliotecas listadas en `requirements.txt`:
+
+## Configuración y Ejecución
+
+Se recomienda utilizar un entorno virtual para gestionar las dependencias del proyecto.
+
+1.  **Crear y Activar un Entorno Virtual:**
+    * En Windows:
+        ```bash
+        python -m venv venv
+        .\venv\Scripts\Activate.ps1
+        ```
+    * En macOS/Linux:
+        ```bash
+        python3 -m venv venv
+        source venv/bin/activate
+        ```
+
+3.  **Instalar Dependencias:**
+    Asegúrate de que el entorno virtual esté activado y luego ejecuta:
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+4.  **Ejecutar el Lanzador de Configuración:**
+    Desde el directorio raíz del proyecto (donde se encuentra `launcher_gui.py`):
+    ```bash
+    python launcher_gui.py
+    ```
+    Esto abrirá la interfaz gráfica donde podrás ajustar los parámetros de la simulación. Los valores por defecto se cargarán desde `drone_simulation/config.py` o desde `config_runtime.json` si existe (con la última configuración usada).
+
+5.  **Iniciar la Simulación:**
+    Dentro del lanzador, después de ajustar los parámetros deseados, haz clic en el botón "Iniciar Simulación". Esto guardará la configuración en `config_runtime.json` y lanzará la simulación principal (`main.py`).
+
+6.  **Controles de Teclado en la Simulación (Pygame):**
+    * **Espacio**: Pausar / Reanudar la simulación.
+    * **R**: Resetear la simulación a las condiciones iniciales.
+    * **A**: Añadir un dron.
+    * **Q**: Quitar el último dron añadido.
+    * **T**: Lanzar el Dashboard de Pruebas RNG.
+    * **+ / -** (teclado principal o numérico): Aumentar / Disminuir la velocidad de visualización de la simulación.
+
+7.  **Ejecutar el Dashboard de Pruebas RNG (Opcional, también desde la simulación):**
+    Puedes ejecutarlo directamente o presionando 'T' en la ventana de simulación:
+    ```bash
+    python rng_dashboard.py
+    ```
